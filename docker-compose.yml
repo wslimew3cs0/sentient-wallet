@@ -1,0 +1,96 @@
+name: ${COMPOSE_PROJECT_NAME:-sentient-wallet}
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/frontend/Dockerfile
+    image: sentient-wallet-frontend:local
+    init: true
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+      start_period: 2s
+    networks:
+      - sentient-local
+
+  api:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: sentient-wallet-api:local
+    init: true
+    environment:
+      SENTIENT_ENV: ${SENTIENT_ENV:-development}
+      SENTIENT_MODEL_DIR: /srv/assets/models
+      SENTIENT_CORS_ORIGINS: ${SENTIENT_CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      SENTIENT_DEV_ATTESTATION_KEY: ${SENTIENT_DEV_ATTESTATION_KEY:-}
+      SENTIENT_DEV_SIGNER_LABEL: ${SENTIENT_DEV_SIGNER_LABEL:-sentient-wallet/local-dev-risk-signer/v1}
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=2)); raise SystemExit(0 if data.get('model_available') else 1)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    networks:
+      - sentient-local
+
+  hardhat:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: contracts/Dockerfile
+    image: sentient-wallet-contracts:local
+    init: true
+    environment:
+      HARDHAT_DISABLE_TELEMETRY_PROMPT: "true"
+      HARDHAT_CHAIN_ID: ${HARDHAT_CHAIN_ID:-31337}
+      HARDHAT_RPC_URL: http://127.0.0.1:8545
+    command: ["npx", "hardhat", "node", "--hostname", "0.0.0.0"]
+    ports:
+      - "127.0.0.1:${HARDHAT_PORT:-8545}:8545"
+    healthcheck:
+      test: ["CMD", "node", "scripts/healthcheck.cjs"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
+    networks:
+      - sentient-local
+
+  contracts-deploy:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: contracts/Dockerfile
+    image: sentient-wallet-contracts:local
+    init: true
+    depends_on:
+      hardhat:
+        condition: service_healthy
+    environment:
+      HARDHAT_DISABLE_TELEMETRY_PROMPT: "true"
+      HARDHAT_CHAIN_ID: ${HARDHAT_CHAIN_ID:-31337}
+      HARDHAT_RPC_URL: ${HARDHAT_RPC_URL:-http://hardhat:8545}
+      SENTIENT_DEV_ATTESTATION_KEY: ${SENTIENT_DEV_ATTESTATION_KEY:-}
+      SENTIENT_DEV_SIGNER_LABEL: ${SENTIENT_DEV_SIGNER_LABEL:-sentient-wallet/local-dev-risk-signer/v1}
+    command: ["npx", "hardhat", "run", "scripts/deploy.cjs", "--network", "localhost", "--no-compile"]
+    restart: "no"
+    networks:
+      - sentient-local
+
+networks:
+  sentient-local:
+    name: ${COMPOSE_PROJECT_NAME:-sentient-wallet}-local
+    driver: bridge
