@@ -1,0 +1,418 @@
+{
+  "artifact_type": "sentient_irs_browser_model",
+  "data_origin": "SYNTHETIC",
+  "explainability": {
+    "aggregate_one_hot_features_by_source": true,
+    "contribution_formula": "coefficient_i * transformed_feature_i",
+    "input_feature_labels": {
+      "amount_balance_ratio": "Transaction relative to wallet balance",
+      "approval_ratio": "Approval relative to transaction value",
+      "asset_volatility": "Asset volatility",
+      "contract_interaction": "Smart-contract interaction",
+      "destination_age_days": "Destination age",
+      "destination_seen_before": "Destination previously used",
+      "estimated_slippage": "Estimated slippage",
+      "hour_of_day": "Hour of day",
+      "market_volatility": "Market volatility",
+      "portfolio_drawdown": "Recent portfolio drawdown",
+      "recent_cancelled_transactions": "Recently cancelled transactions",
+      "recent_high_risk_transactions": "Recent high-risk transactions",
+      "time_since_previous_transaction": "Time since the previous transaction",
+      "transaction_amount": "Transaction amount",
+      "transaction_type": "Transaction type",
+      "transactions_1h": "Transactions initiated within one hour",
+      "transactions_24h": "Transactions initiated within 24 hours",
+      "wallet_balance": "Available wallet balance",
+      "weekend": "Weekend transaction"
+    },
+    "method": "per-feature standardized log-odds contribution"
+  },
+  "input_schema": [
+    {
+      "enum": [
+        "BUY",
+        "SELL",
+        "TRANSFER",
+        "CONTRACT_CALL"
+      ],
+      "label": "Transaction type",
+      "name": "transaction_type",
+      "required": true,
+      "type": "string",
+      "unit": null
+    },
+    {
+      "exclusive_minimum": 0.0,
+      "label": "Transaction amount",
+      "name": "transaction_amount",
+      "required": true,
+      "type": "number",
+      "unit": "USDT"
+    },
+    {
+      "exclusive_minimum": 0.0,
+      "label": "Available wallet balance",
+      "name": "wallet_balance",
+      "required": true,
+      "type": "number",
+      "unit": "USDT"
+    },
+    {
+      "derived": "transaction_amount / wallet_balance",
+      "label": "Transaction relative to wallet balance",
+      "minimum": 0.0,
+      "name": "amount_balance_ratio",
+      "required": true,
+      "type": "number",
+      "unit": "ratio"
+    },
+    {
+      "label": "Transactions initiated within one hour",
+      "minimum": 0,
+      "name": "transactions_1h",
+      "required": true,
+      "type": "integer",
+      "unit": "count"
+    },
+    {
+      "label": "Transactions initiated within 24 hours",
+      "minimum": 0,
+      "name": "transactions_24h",
+      "required": true,
+      "type": "integer",
+      "unit": "count"
+    },
+    {
+      "label": "Time since the previous transaction",
+      "minimum": 0.0,
+      "name": "time_since_previous_transaction",
+      "required": true,
+      "type": "number",
+      "unit": "minutes"
+    },
+    {
+      "label": "Market volatility",
+      "minimum": 0.0,
+      "name": "market_volatility",
+      "required": true,
+      "type": "number",
+      "unit": "ratio"
+    },
+    {
+      "label": "Asset volatility",
+      "minimum": 0.0,
+      "name": "asset_volatility",
+      "required": true,
+      "type": "number",
+      "unit": "ratio"
+    },
+    {
+      "label": "Recent portfolio drawdown",
+      "minimum": 0.0,
+      "name": "portfolio_drawdown",
+      "required": true,
+      "type": "number",
+      "unit": "ratio"
+    },
+    {
+      "enum": [
+        0,
+        1
+      ],
+      "label": "Destination previously used",
+      "name": "destination_seen_before",
+      "required": true,
+      "type": "integer",
+      "unit": null
+    },
+    {
+      "label": "Destination age",
+      "minimum": 0.0,
+      "name": "destination_age_days",
+      "required": true,
+      "type": "number",
+      "unit": "days"
+    },
+    {
+      "enum": [
+        0,
+        1
+      ],
+      "label": "Smart-contract interaction",
+      "name": "contract_interaction",
+      "required": true,
+      "type": "integer",
+      "unit": null
+    },
+    {
+      "label": "Approval relative to transaction value",
+      "minimum": 0.0,
+      "name": "approval_ratio",
+      "required": true,
+      "type": "number",
+      "unit": "ratio"
+    },
+    {
+      "label": "Estimated slippage",
+      "minimum": 0.0,
+      "name": "estimated_slippage",
+      "required": true,
+      "type": "number",
+      "unit": "ratio"
+    },
+    {
+      "label": "Hour of day",
+      "maximum": 23,
+      "minimum": 0,
+      "name": "hour_of_day",
+      "required": true,
+      "type": "integer",
+      "unit": "hour_utc"
+    },
+    {
+      "enum": [
+        0,
+        1
+      ],
+      "label": "Weekend transaction",
+      "name": "weekend",
+      "required": true,
+      "type": "integer",
+      "unit": null
+    },
+    {
+      "label": "Recently cancelled transactions",
+      "minimum": 0,
+      "name": "recent_cancelled_transactions",
+      "required": true,
+      "type": "integer",
+      "unit": "count"
+    },
+    {
+      "label": "Recent high-risk transactions",
+      "minimum": 0,
+      "name": "recent_high_risk_transactions",
+      "required": true,
+      "type": "integer",
+      "unit": "count"
+    }
+  ],
+  "model": {
+    "coefficient_feature_order": [
+      "transaction_amount",
+      "wallet_balance",
+      "amount_balance_ratio",
+      "transactions_1h",
+      "transactions_24h",
+      "time_since_previous_transaction",
+      "market_volatility",
+      "asset_volatility",
+      "portfolio_drawdown",
+      "destination_seen_before",
+      "destination_age_days",
+      "contract_interaction",
+      "approval_ratio",
+      "estimated_slippage",
+      "hour_of_day",
+      "weekend",
+      "recent_cancelled_transactions",
+      "recent_high_risk_transactions",
+      "transaction_type=BUY",
+      "transaction_type=SELL",
+      "transaction_type=TRANSFER",
+      "transaction_type=CONTRACT_CALL"
+    ],
+    "coefficients": [
+      -0.101810699011,
+      0.117845281273,
+      1.018387109075,
+      0.351440208996,
+      0.086717833717,
+      -0.035564346766,
+      0.167353670647,
+      0.165095488662,
+      0.140780239835,
+      -0.482334091535,
+      -0.067536195561,
+      0.059099171413,
+      0.265171111994,
+      0.088605373494,
+      -0.042241765181,
+      0.110037688433,
+      0.160476563614,
+      0.200547576903,
+      -0.160086510661,
+      -0.184131361962,
+      -0.365642620943,
+      0.158344299878
+    ],
+    "intercept": -0.551516193688,
+    "link": "sigmoid",
+    "type": "logistic_regression"
+  },
+  "model_name": "Sentient IRS Logistic Regression",
+  "model_status": "EXPERIMENTAL",
+  "model_version": "1.0.0",
+  "output": {
+    "default_policy_threshold": 0.8,
+    "evaluation_threshold": 0.5,
+    "irs_score": "round(risk_probability * 100)",
+    "risk_bands": [
+      {
+        "level": "LOW",
+        "maximum_exclusive": 0.35,
+        "minimum": 0.0,
+        "recommended_policy": "ALLOW"
+      },
+      {
+        "level": "MODERATE",
+        "maximum_exclusive": 0.6,
+        "minimum": 0.35,
+        "recommended_policy": "ADDITIONAL_CONFIRMATION"
+      },
+      {
+        "level": "HIGH",
+        "maximum_exclusive": 0.8,
+        "minimum": 0.6,
+        "recommended_policy": "COOLDOWN"
+      },
+      {
+        "level": "CRITICAL",
+        "maximum_exclusive": 1.01,
+        "minimum": 0.8,
+        "recommended_policy": "COOLDOWN"
+      }
+    ],
+    "risk_probability": "sigmoid(intercept + sum(coefficient_i * transformed_feature_i))"
+  },
+  "preprocessing": {
+    "categorical": {
+      "transaction_type": {
+        "categories": [
+          "BUY",
+          "SELL",
+          "TRANSFER",
+          "CONTRACT_CALL"
+        ],
+        "method": "one_hot",
+        "unknown_category_policy": "reject"
+      }
+    },
+    "categorical_feature_order": [
+      "transaction_type"
+    ],
+    "numeric": {
+      "features": [
+        "transaction_amount",
+        "wallet_balance",
+        "amount_balance_ratio",
+        "transactions_1h",
+        "transactions_24h",
+        "time_since_previous_transaction",
+        "market_volatility",
+        "asset_volatility",
+        "portfolio_drawdown",
+        "destination_seen_before",
+        "destination_age_days",
+        "contract_interaction",
+        "approval_ratio",
+        "estimated_slippage",
+        "hour_of_day",
+        "weekend",
+        "recent_cancelled_transactions",
+        "recent_high_risk_transactions"
+      ],
+      "means": {
+        "amount_balance_ratio": 0.279703086355,
+        "approval_ratio": 0.169082197893,
+        "asset_volatility": 0.170414165458,
+        "contract_interaction": 0.196888888889,
+        "destination_age_days": 308.420969069333,
+        "destination_seen_before": 0.720444444444,
+        "estimated_slippage": 0.028742497389,
+        "hour_of_day": 11.494888888889,
+        "market_volatility": 0.109861438787,
+        "portfolio_drawdown": 0.137023273856,
+        "recent_cancelled_transactions": 0.271777777778,
+        "recent_high_risk_transactions": 0.223555555556,
+        "time_since_previous_transaction": 183.507465032889,
+        "transaction_amount": 5019.04627111111,
+        "transactions_1h": 1.563777777778,
+        "transactions_24h": 6.148,
+        "wallet_balance": 17743.89029111111,
+        "weekend": 0.282888888889
+      },
+      "method": "standard_score_using_training_split_population_statistics",
+      "scales": {
+        "amount_balance_ratio": 0.280767609226,
+        "approval_ratio": 0.435689117154,
+        "asset_volatility": 0.110640195832,
+        "contract_interaction": 0.397647650969,
+        "destination_age_days": 511.441854497978,
+        "destination_seen_before": 0.448780845083,
+        "estimated_slippage": 0.016666783514,
+        "hour_of_day": 6.953893912277,
+        "market_volatility": 0.082318946096,
+        "portfolio_drawdown": 0.100928239633,
+        "recent_cancelled_transactions": 0.517389983534,
+        "recent_high_risk_transactions": 0.471664454909,
+        "time_since_previous_transaction": 184.436251718885,
+        "transaction_amount": 9611.915817559071,
+        "transactions_1h": 1.777182275262,
+        "transactions_24h": 3.835142529584,
+        "wallet_balance": 19762.153806566374,
+        "weekend": 0.450402892344
+      }
+    },
+    "transformed_feature_order": [
+      "transaction_amount",
+      "wallet_balance",
+      "amount_balance_ratio",
+      "transactions_1h",
+      "transactions_24h",
+      "time_since_previous_transaction",
+      "market_volatility",
+      "asset_volatility",
+      "portfolio_drawdown",
+      "destination_seen_before",
+      "destination_age_days",
+      "contract_interaction",
+      "approval_ratio",
+      "estimated_slippage",
+      "hour_of_day",
+      "weekend",
+      "recent_cancelled_transactions",
+      "recent_high_risk_transactions",
+      "transaction_type=BUY",
+      "transaction_type=SELL",
+      "transaction_type=TRANSFER",
+      "transaction_type=CONTRACT_CALL"
+    ],
+    "transformed_feature_sources": [
+      "transaction_amount",
+      "wallet_balance",
+      "amount_balance_ratio",
+      "transactions_1h",
+      "transactions_24h",
+      "time_since_previous_transaction",
+      "market_volatility",
+      "asset_volatility",
+      "portfolio_drawdown",
+      "destination_seen_before",
+      "destination_age_days",
+      "contract_interaction",
+      "approval_ratio",
+      "estimated_slippage",
+      "hour_of_day",
+      "weekend",
+      "recent_cancelled_transactions",
+      "recent_high_risk_transactions",
+      "transaction_type",
+      "transaction_type",
+      "transaction_type",
+      "transaction_type"
+    ]
+  },
+  "schema_version": "1.0.0",
+  "warning": "SYNTHETIC DATA ONLY. Labels are generated from documented behavioral-risk proxy rules plus seeded noise; they are not observations of emotion, intent, creditworthiness, or real financial harm."
+}

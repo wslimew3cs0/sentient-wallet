@@ -1,0 +1,90 @@
+{
+  "artifact_type": "model_metadata",
+  "artifacts": {
+    "irs-model.json": "6c218cd7b0b73edf73e7ca4f07792197aa0e6d46a088dba97730804feee6e35d",
+    "model-metrics.json": "17c74a2d9cd44d37f8963765c9879eeb18aa60e0b1510ec678a9f510c6f7ce87",
+    "model-test-vectors.json": "721b11ad4b9dede7e2e5c1c2b7b452cf9b80bb55633353f3ed5268ff97e01786"
+  },
+  "data_origin": "SYNTHETIC",
+  "dataset": {
+    "name": "Sentient Wallet Synthetic Behavioral Transactions",
+    "positive_label_rate": 0.3578333333,
+    "row_count": 6000,
+    "seed": 20260819,
+    "sha256": "568525bb14d58c6e246c307ce88c973b5a7305e396d921c8014098bb55488aea",
+    "version": "synthetic-transactions-v1.0.0"
+  },
+  "limitations": [
+    "All training and evaluation rows are synthetic and generated from explicit proxy rules.",
+    "Metrics measure recovery of synthetic labels, not real-world loss prevention or user intent.",
+    "The model must not be used for psychological diagnosis, credit scoring, or autonomous financial advice.",
+    "Distribution shift, adversarial inputs, and real deployment calibration have not been established."
+  ],
+  "model_name": "Sentient IRS Logistic Regression",
+  "model_type": "logistic_regression",
+  "model_version": "1.0.0",
+  "purpose": "Estimate a synthetic behavioral transaction-risk probability for proportionate demo-wallet friction.",
+  "selected_test_metrics": {
+    "brier_score": 0.1756283667,
+    "confusion_matrix": {
+      "false_negative": 252,
+      "false_positive": 136,
+      "labels": [
+        0,
+        1
+      ],
+      "matrix": [
+        [
+          827,
+          136
+        ],
+        [
+          252,
+          285
+        ]
+      ],
+      "true_negative": 827,
+      "true_positive": 285
+    },
+    "expected_calibration_error": 0.0188096276,
+    "f1": 0.5949895616,
+    "false_negative_rate": 0.469273743,
+    "false_positive_rate": 0.1412253375,
+    "precision": 0.67695962,
+    "recall": 0.530726257,
+    "roc_auc": 0.7808563014
+  },
+  "training": {
+    "library_versions": {
+      "numpy": "2.0.2",
+      "pandas": "2.3.3",
+      "scikit_learn": "1.6.1"
+    },
+    "selected_by": "Selected by the published weighted score combining ROC-AUC, recall, precision, F1, Brier calibration quality, and interpretability. The formula intentionally excludes accuracy and gives missed-risk recall and probability calibration explicit weight.",
+    "split": {
+      "classification_threshold": 0.5,
+      "seed": 20260819,
+      "selection_formula": {
+        "accuracy_used": false,
+        "calibration_term": "1 - Brier score",
+        "interpretability_scores": {
+          "logistic_regression": 1.0,
+          "random_forest": 0.35
+        },
+        "weights": {
+          "calibration": 0.2,
+          "f1": 0.12,
+          "interpretability": 0.12,
+          "precision": 0.1,
+          "recall": 0.18,
+          "roc_auc": 0.28
+        }
+      },
+      "split": "fixed stratified holdout",
+      "test_fraction": 0.25,
+      "test_rows": 1500,
+      "train_rows": 4500
+    }
+  },
+  "warning": "SYNTHETIC DATA ONLY. Labels are generated from documented behavioral-risk proxy rules plus seeded noise; they are not observations of emotion, intent, creditworthiness, or real financial harm."
+}

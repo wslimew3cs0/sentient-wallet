@@ -1,0 +1,101 @@
+{
+  "artifact_type": "browser_model_parity_vectors",
+  "data_origin": "SYNTHETIC",
+  "model_version": "1.0.0",
+  "tolerance": 1e-10,
+  "vectors": [
+    {
+      "data_origin": "SYNTHETIC",
+      "expected": {
+        "irs_score": 4,
+        "risk_level": "LOW",
+        "risk_probability": 0.035459594536
+      },
+      "features": {
+        "amount_balance_ratio": 0.003059057955,
+        "approval_ratio": 0.0,
+        "asset_volatility": 0.07843874,
+        "contract_interaction": 0,
+        "destination_age_days": 274.021328,
+        "destination_seen_before": 1,
+        "estimated_slippage": 0.01756121,
+        "hour_of_day": 18,
+        "market_volatility": 0.06840126,
+        "portfolio_drawdown": 0.05322037,
+        "recent_cancelled_transactions": 0,
+        "recent_high_risk_transactions": 0,
+        "time_since_previous_transaction": 172.714376,
+        "transaction_amount": 12.65,
+        "transaction_type": "BUY",
+        "transactions_1h": 0,
+        "transactions_24h": 0,
+        "wallet_balance": 4135.26,
+        "weekend": 0
+      },
+      "name": "low_risk_fixture",
+      "source_transaction_id": "SYN-001668"
+    },
+    {
+      "data_origin": "SYNTHETIC",
+      "expected": {
+        "irs_score": 29,
+        "risk_level": "LOW",
+        "risk_probability": 0.288740703136
+      },
+      "features": {
+        "amount_balance_ratio": 0.056133077704,
+        "approval_ratio": 0.0,
+        "asset_volatility": 0.32144302,
+        "contract_interaction": 0,
+        "destination_age_days": 11.458357,
+        "destination_seen_before": 0,
+        "estimated_slippage": 0.03116557,
+        "hour_of_day": 14,
+        "market_volatility": 0.19278575,
+        "portfolio_drawdown": 0.03887815,
+        "recent_cancelled_transactions": 1,
+        "recent_high_risk_transactions": 0,
+        "time_since_previous_transaction": 142.440961,
+        "transaction_amount": 757.43,
+        "transaction_type": "SELL",
+        "transactions_1h": 0,
+        "transactions_24h": 3,
+        "wallet_balance": 13493.47,
+        "weekend": 0
+      },
+      "name": "typical_fixture",
+      "source_transaction_id": "SYN-003012"
+    },
+    {
+      "data_origin": "SYNTHETIC",
+      "expected": {
+        "irs_score": 99,
+        "risk_level": "CRITICAL",
+        "risk_probability": 0.988253990578
+      },
+      "features": {
+        "amount_balance_ratio": 0.902596004152,
+        "approval_ratio": 0.36108588,
+        "asset_volatility": 0.09893631,
+        "contract_interaction": 1,
+        "destination_age_days": 6.126738,
+        "destination_seen_before": 0,
+        "estimated_slippage": 0.01534399,
+        "hour_of_day": 1,
+        "market_volatility": 0.02605761,
+        "portfolio_drawdown": 0.05703559,
+        "recent_cancelled_transactions": 1,
+        "recent_high_risk_transactions": 1,
+        "time_since_previous_transaction": 63.084598,
+        "transaction_amount": 6957.21,
+        "transaction_type": "BUY",
+        "transactions_1h": 10,
+        "transactions_24h": 12,
+        "wallet_balance": 7708.0,
+        "weekend": 0
+      },
+      "name": "high_risk_fixture",
+      "source_transaction_id": "SYN-002302"
+    }
+  ]
+}
