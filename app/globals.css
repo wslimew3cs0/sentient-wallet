@@ -1,0 +1,9 @@
+@import "../assets/css/app.css";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+}
