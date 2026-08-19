@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defense Settings - Sentient Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body{background-color:#0b0e11;color:#EAECEF;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+        .pixel-font{font-family:'Press Start 2P',cursive}
+        .nav-item{padding:0.5rem 1rem;color:#848E9C;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;font-weight:600;text-decoration:none;display:inline-block}
+        .nav-item:hover{color:#EAECEF}
+        .nav-item.active{color:#FCD535;border-bottom-color:#FCD535}
+        input[type=range]{-webkit-appearance:none;width:100%;background:transparent}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;height:20px;width:20px;border-radius:50%;background:#FCD535;cursor:pointer;margin-top:-8px;box-shadow:0 0 10px rgba(252,213,53,.5)}
+        input[type=range]::-webkit-slider-runnable-track{width:100%;height:4px;cursor:pointer;background:#2B3139;border-radius:2px}
+        #page-loader{background-color:#0b0e11;z-index:9999;overflow:hidden}
+        .loader-bar{width:0%;height:2px;background-color:#FCD535;transition:width .4s}
+        @keyframes scanLine{0%{top:0%;opacity:1}50%{opacity:.5}100%{top:100%;opacity:1}}
+        .scan-line{position:absolute;left:0;width:100%;height:4px;background:linear-gradient(90deg,transparent,#0ECB81,transparent);animation:scanLine 1.5s infinite;box-shadow:0 0 20px #0ECB81}
+        @keyframes pulse-glow{0%,100%{box-shadow:0 0 20px rgba(14,203,129,0.3)}50%{box-shadow:0 0 40px rgba(14,203,129,0.6)}}
+        @keyframes shield-rotate{0%{transform:rotateY(0deg)}100%{transform:rotateY(360deg)}}
+        .defense-card{transition:all .3s ease;border:1px solid #2B3139;background:#181A20;border-radius:16px;position:relative;overflow:hidden}
+        .defense-card:hover{transform:translateY(-4px);border-color:#0ECB81;box-shadow:0 8px 32px rgba(14,203,129,0.15)}
+        .defense-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#0ECB81,transparent);opacity:0;transition:opacity .3s}
+        .defense-card:hover::before{opacity:1}
+        .status-active{border-color:#0ECB81;animation:pulse-glow 2s infinite}
+        .shield-icon{animation:shield-rotate 3s linear infinite;transform-style:preserve-3d}
+        .threat-level{background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:12px;padding:20px;position:relative;overflow:hidden}
+        .threat-level::after{content:'';position:absolute;top:-50%;right:-50%;width:100%;height:100%;background:radial-gradient(circle,rgba(14,203,129,0.1) 0%,transparent 70%)}
+        .radar-sweep{position:absolute;top:50%;left:50%;width:150%;height:150%;transform:translate(-50%,-50%);background:conic-gradient(from 0deg,transparent 0deg,rgba(14,203,129,0.3) 60deg,transparent 120deg);animation:radar 4s linear infinite;border-radius:50%}
+        @keyframes radar{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+        .level-indicator{display:flex;gap:4px;align-items:flex-end}
+        .level-bar{width:12px;background:#2B3139;border-radius:2px;transition:all .3s}
+        .level-bar.active{background:#0ECB81;box-shadow:0 0 8px rgba(14,203,129,0.5)}
+        .cool-down-badge{background:linear-gradient(135deg,#F6465D,#ff6b6b);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold;animation:blink 1s infinite}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.7}}
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <div id="page-loader" class="absolute inset-0 hidden flex-col justify-center items-center">
+        <div class="scan-line"></div>
+        <div class="relative z-10 text-center">
+            <div class="text-[#FCD535] pixel-font text-2xl mb-6">SENTIENT OS</div>
+            <div class="w-80 h-2 bg-[#2B3139] rounded overflow-hidden"><div id="loader-progress" class="loader-bar h-full"></div></div>
+            <div class="text-[#0ECB81] font-mono text-sm mt-4">Calibrating Neural Defense...</div>
+        </div>
+    </div>
+
+    <header class="bg-[#181A20] border-b border-[#2B3139] flex flex-col">
+        <div class="h-14 px-6 flex items-center justify-between border-b border-[#2B3139]">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-[#FCD535] font-bold text-xl">SENTIENT</a>
+                <div class="text-sm text-[#848E9C]">/ Web3 Os</div>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+                <div><span class="text-[#848E9C]">USDT: </span><span class="font-mono text-white">10000.00</span></div>
+                <div class="bg-[#2B3139] px-3 py-1 rounded text-[#FCD535] pixel-font text-[10px]"><span>PoD:</span><span>500</span></div>
+            </div>
+        </div>
+        <nav class="h-12 px-6 flex items-center gap-2">
+            <a href="exchange.html" class="nav-item"><span class="mr-1">📈</span>Trading Terminal</a>
+            <a href="pet.html" class="nav-item"><span class="mr-1">👾</span>NFT Pet Space</a>
+            <a href="vault.html" class="nav-item"><span class="mr-1">🏦</span>Vault</a>
+            <a href="settings.html" class="nav-item active"><span class="mr-1">🛡️</span>Defense Settings</a>
+        </nav>
+    </header>
+
+    <main class="flex-1 bg-[#0b0e11] overflow-y-auto p-8">
+        <!-- Defense Level Overview -->
+        <div class="max-w-2xl mx-auto mb-8">
+            <div class="threat-level flex items-center justify-between">
+                <div class="flex items-center gap-6 relative z-10">
+                    <div class="w-20 h-20 relative">
+                        <svg class="w-full h-full shield-icon" viewBox="0 0 100 100" fill="none">
+                            <path d="M50 5L10 20v30c0 27.5 17.5 52.5 40 60 22.5-7.5 40-32.5 40-60V20L50 5z" stroke="#0ECB81" stroke-width="3" fill="rgba(14,203,129,0.1)"/>
+                            <path d="M30 50l15 15 25-30" stroke="#0ECB81" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <div class="absolute inset-0 radar-sweep"></div>
+                    </div>
+                    <div>
+                        <div class="text-[#848E9C] text-sm mb-1">Defense Level</div>
+                        <div class="text-3xl font-bold text-white mb-2">SENTINEL<span class="text-[#0ECB81]">-ALPHA</span></div>
+                        <div class="level-indicator">
+                            <div class="level-bar h-4 active"></div>
+                            <div class="level-bar h-6 active"></div>
+                            <div class="level-bar h-8 active"></div>
+                            <div class="level-bar h-10 active"></div>
+                            <div class="level-bar h-12 active"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right relative z-10">
+                    <div class="text-[#848E9C] text-xs">Active Rules</div>
+                    <div class="text-4xl font-mono text-[#0ECB81]">4</div>
+                    <div class="text-xs text-[#848E9C] mt-1">Block Rate 99.7%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-2xl mx-auto">
+            <h2 class="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                <svg class="w-8 h-8 text-[#F6465D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                Neural Defense Settings
+            </h2>
+            <p class="text-[#848E9C] mb-8">Pacts made when sane, smart contracts enforce strictly</p>
+
+            <div class="space-y-5">
+                <!-- Impulse Risk Blocking -->
+                <div class="defense-card p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#FCD535]/20 flex items-center justify-center text-xl">⚡</div>
+                            <div>
+                                <h3 class="text-white font-bold">Impulse Risk Score (IRS) Threshold</h3>
+                                <p class="text-xs text-[#848E9C]">System calculates transaction impulse index in real-time, auto-blocks when exceeded</p>
+                            </div>
+                        </div>
+                        <div class="cool-down-badge">ACTIVE</div>
+                    </div>
+                    <div class="flex justify-between items-end mb-4">
+                        <div></div>
+                        <div class="text-3xl font-mono text-[#FCD535]" id="threshold-val">80</div>
+                    </div>
+                    <input type="range" min="20" max="100" value="80" id="threshold-slider" oninput="updateThreshold(this.value)">
+                    <div class="flex justify-between text-xs text-[#848E9C] mt-2">
+                        <span>Extremely Sensitive (20)</span>
+                        <span>Relaxed (100)</span>
+                    </div>
+                    <div class="mt-4 p-3 bg-[#0b0e11] rounded border border-[#2B3139] text-sm text-white" id="threshold-desc">
+                        Current Setting: <span class="text-[#FCD535]">Standard Defense (80)</span>
+                    </div>
+                </div>
+
+                <!-- Cooling Period Rules -->
+                <div class="defense-card p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#0ECB81]/20 flex items-center justify-center text-xl">⏱️</div>
+                            <div>
+                                <h3 class="text-white font-bold">Mandatory Cooling Period</h3>
+                                <p class="text-xs text-[#848E9C]">Must wait cooldown time after high-risk trades</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-[#2B3139] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0ECB81]"></div>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 mt-4">
+                        <div class="bg-[#0b0e11] rounded-lg p-3 text-center border border-[#2B3139]">
+                            <div class="text-xs text-[#848E9C]">Cooling Period</div>
+                            <div class="text-lg font-mono text-[#0ECB81]">15 minutes</div>
+                        </div>
+                        <div class="bg-[#0b0e11] rounded-lg p-3 text-center border border-[#2B3139]">
+                            <div class="text-xs text-[#848E9C]">Cooling Down</div>
+                            <div class="text-lg font-mono text-white">--</div>
+                        </div>
+                        <div class="bg-[#0b0e11] rounded-lg p-3 text-center border border-[#2B3139]">
+                            <div class="text-xs text-[#848E9C]">Remaining Cooldown</div>
+                            <div class="text-lg font-mono text-white">0 minutes</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trading Frequency Limit -->
+                <div class="defense-card p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#F6465D]/20 flex items-center justify-center text-xl">🔄</div>
+                            <div>
+                                <h3 class="text-white font-bold">Trading Frequency Limit</h3>
+                                <p class="text-xs text-[#848E9C]">Prevent emotional loss of control from high-frequency trading</p>
+                            </div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-[#2B3139] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0ECB81]"></div>
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-4 mt-4">
+                        <div class="flex-1">
+                            <div class="flex justify-between text-xs text-[#848E9C] mb-2">
+                                <span>Max Transactions Per Hour</span>
+                                <span class="text-white font-mono">10 times</span>
+                            </div>
+                            <div class="h-2 bg-[#2B3139] rounded-full overflow-hidden">
+                                <div class="h-full w-1/3 bg-gradient-to-r from-[#0ECB81] to-[#FCD535] rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-[#848E9C]">Today's Trades</div>
+                            <div class="text-xl font-mono text-white">3<span class="text-sm text-[#848E9C]">/10</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amount Tier Protection -->
+                <div class="defense-card p-6">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#5B8DEF]/20 flex items-center justify-center text-xl">💰</div>
+                            <div>
+                                <h3 class="text-white font-bold">Amount Tier Protection</h3>
+                                <p class="text-xs text-[#848E9C]">Large transactions trigger higher-level review</p>
+                            </div>
+                        </div>
+                        <div class="cool-down-badge" style="background:linear-gradient(135deg,#5B8DEF,#8ab4ff)">PRO</div>
+                    </div>
+                    <div class="space-y-3 mt-4">
+                        <div class="flex items-center justify-between p-3 bg-[#0b0e11] rounded-lg border border-[#2B3139]">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-[#0ECB81]"></span>
+                                <span class="text-sm text-white">$0 - $1,000</span>
+                            </div>
+                            <span class="text-xs text-[#0ECB81]">Instant</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-[#0b0e11] rounded-lg border border-[#2B3139]">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-[#FCD535]"></span>
+                                <span class="text-sm text-white">$1,000 - $5,000</span>
+                            </div>
+                            <span class="text-xs text-[#FCD535]">1 hour delay</span>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-[#0b0e11] rounded-lg border border-[#F6465D]">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-[#F6465D]"></span>
+                                <span class="text-sm text-white">> $5,000</span>
+                            </div>
+                            <span class="text-xs text-[#F6465D]">24 hour lockup</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Emotion Pattern Recognition -->
+                <div class="defense-card p-6 opacity-60">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-[#9945FF]/20 flex items-center justify-center text-xl">🧠</div>
+                            <div>
+                                <h3 class="text-white font-bold">Emotion Pattern Recognition <span class="text-xs bg-[#2B3139] px-2 py-1 ml-2 rounded text-[#FCD535]">COMING SOON</span></h3>
+                                <p class="text-xs text-[#848E9C]">AI analyzes trading behavior patterns, detects irrational decisions</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 p-4 bg-[#0b0e11] rounded-lg border border-dashed border-[#2B3139] text-center">
+                        <div class="text-sm text-[#848E9C]">This feature requires connecting to a neural interface device</div>
+                        <div class="text-xs text-[#5B8DEF] mt-2">View Compatible Devices ></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function updateThreshold(val){
+            document.getElementById('threshold-val').innerText=val;
+            let desc='',color='';
+            if(val<=40){desc='Extremely Sensitive';color='#F6465D';}
+            else if(val<=60){desc='Strict Defense';color='#FCD535';}
+            else if(val<=90){desc='Standard Defense';color='#0ECB81';}
+            else{desc='Relaxed Mode';color='#848E9C';}
+            document.getElementById('threshold-desc').innerHTML=`Current Setting: <span style="color:${color}">${desc} (${val})</span>`;
+        }
+
+        function runBoot(){
+            const l=document.getElementById('page-loader'),p=document.getElementById('loader-progress');
+            l.classList.remove('hidden');l.classList.add('flex');
+            setTimeout(()=>p.style.width='50%',100);setTimeout(()=>p.style.width='100%',400);
+            setTimeout(()=>{l.classList.add('hidden');l.classList.remove('flex');p.style.width='0%';},700);
+        }
+
+        window.addEventListener('load',runBoot);
+    </script>
+</body>
+</html>

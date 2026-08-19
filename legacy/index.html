@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sentient Wallet - Web3 OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0b0e11;
+            color: #EAECEF;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .pixel-font { font-family: 'Press Start 2P', cursive; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2B3139; border-radius: 3px; }
+        .nav-item {
+            padding: 0.5rem 1rem;
+            color: #848E9C;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .nav-item:hover { color: #EAECEF; }
+        .nav-item.active {
+            color: #FCD535;
+            border-bottom-color: #FCD535;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-[#181A20] border-b border-[#2B3139] flex flex-col flex-shrink-0 z-50">
+        <div class="h-14 px-6 flex items-center justify-between border-b border-[#2B3139]">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-[#FCD535] font-bold text-xl tracking-wider hover:text-white transition-colors">SENTIENT</a>
+                <div class="text-sm text-[#848E9C]">/ Web3 Os</div>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+                <div>
+                    <span class="text-[#848E9C]">Total Asset Value: </span>
+                    <span class="font-mono text-white ml-1">$10,000.00</span>
+                </div>
+                <div>
+                    <span class="text-[#848E9C]">USDT: </span>
+                    <span class="font-mono text-white ml-1">10000.00</span>
+                </div>
+                <div class="bg-[#2B3139] px-3 py-1 rounded-md text-[#FCD535] pixel-font text-[10px] flex items-center gap-2">
+                    <span>PoD:</span>
+                    <span>500</span>
+                </div>
+            </div>
+        </div>
+        <nav class="h-12 px-6 flex items-center gap-2 overflow-x-auto">
+            <a href="exchange.html" class="nav-item">
+                <span class="mr-1">📈</span> Exchange
+            </a>
+            <a href="pet.html" class="nav-item">
+                <span class="mr-1">👾</span> NFT Pet Space
+            </a>
+            <a href="vault.html" class="nav-item">
+                <span class="mr-1">🏦</span> Vault
+            </a>
+            <a href="settings.html" class="nav-item">
+                <span class="mr-1">🛡️</span> Defense Settings
+            </a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col items-center justify-center p-8">
+        <div class="text-center max-w-2xl">
+            <div class="text-6xl mb-6">🦄</div>
+            <h1 class="text-4xl font-bold text-white mb-4">Welcome to Sentient Wallet</h1>
+            <p class="text-[#848E9C] text-lg mb-8">
+                Web3 Self-Discipline Wallet | Emotion Mirror Defense | Impulse Blocking System
+            </p>
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <a href="exchange.html" class="bg-[#181A20] border border-[#2B3139] hover:border-[#FCD535] rounded-xl p-6 transition-colors group">
+                    <div class="text-3xl mb-2 group-hover:scale-110 transition-transform">📈</div>
+                    <div class="text-white font-bold">Exchange</div>
+                    <div class="text-[#848E9C] text-sm">Real-time Trading</div>
+                </a>
+                <a href="pet.html" class="bg-[#181A20] border border-[#2B3139] hover:border-[#FCD535] rounded-xl p-6 transition-colors group">
+                    <div class="text-3xl mb-2 group-hover:scale-110 transition-transform">👾</div>
+                    <div class="text-white font-bold">NFT Pets</div>
+                    <div class="text-[#848E9C] text-sm">Emotion Mirror NFTs</div>
+                </a>
+                <a href="vault.html" class="bg-[#181A20] border border-[#2B3139] hover:border-[#FCD535] rounded-xl p-6 transition-colors group">
+                    <div class="text-3xl mb-2 group-hover:scale-110 transition-transform">🏦</div>
+                    <div class="text-white font-bold">Yield Vault</div>
+                    <div class="text-[#848E9C] text-sm">Aave Yield</div>
+                </a>
+                <a href="settings.html" class="bg-[#181A20] border border-[#2B3139] hover:border-[#FCD535] rounded-xl p-6 transition-colors group">
+                    <div class="text-3xl mb-2 group-hover:scale-110 transition-transform">🛡️</div>
+                    <div class="text-white font-bold">Defense Settings</div>
+                    <div class="text-[#848E9C] text-sm">Neural Defense Config</div>
+                </a>
+            </div>
+            <p class="text-[#2B3139] text-xs pixel-font">
+                v1.0.0 // SENTIENT OS
+            </p>
+        </div>
+    </main>
+
+    <footer class="bg-[#181A20] border-t border-[#2B3139] py-4 text-center">
+        <p class="text-[#848E9C] text-sm">Sentient Wallet - Rational Finance Web3 OS</p>
+    </footer>
+
+</body>
+</html>

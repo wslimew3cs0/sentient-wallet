@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault - Sentient Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body{background-color:#0b0e11;color:#EAECEF;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+        .pixel-font{font-family:'Press Start 2P',cursive}
+        ::-webkit-scrollbar{width:6px}
+        ::-webkit-scrollbar-track{background:#0b0e11}
+        ::-webkit-scrollbar-thumb{background:#2B3139;border-radius:3px}
+        .custom-scrollbar::-webkit-scrollbar{width:4px}
+        .custom-scrollbar::-webkit-scrollbar-track{background:#181A20}
+        .custom-scrollbar::-webkit-scrollbar-thumb{background:#0ECB81;border-radius:2px}
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover{background:#00FF88}
+        .nav-item{padding:0.5rem 1rem;color:#848E9C;border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;font-weight:600;text-decoration:none;display:inline-block}
+        .nav-item:hover{color:#EAECEF}
+        .nav-item.active{color:#FCD535;border-bottom-color:#FCD535}
+        #page-loader{background-color:#0b0e11;z-index:9999;overflow:hidden}
+        .loader-bar{width:0%;height:2px;background-color:#FCD535;transition:width .4s}
+        @keyframes scanLine{0%{top:0%;opacity:1}50%{opacity:.5}100%{top:100%;opacity:1}}
+        .scan-line{position:absolute;left:0;width:100%;height:4px;background:linear-gradient(90deg,transparent,#0ECB81,transparent);animation:scanLine 1.5s infinite;box-shadow:0 0 20px #0ECB81}
+        @keyframes pulse-glow{0%,100%{box-shadow:0 0 20px rgba(14,203,129,0.3)}50%{box-shadow:0 0 40px rgba(14,203,129,0.6)}}
+        @keyframes counter-glow{0%,100%{box-shadow:0 0 15px rgba(252,213,53,0.4)}50%{box-shadow:0 0 30px rgba(252,213,53,0.8)}}
+        .value-card{transition:all .3s ease;border:1px solid #2B3139;background:#181A20;border-radius:16px;position:relative;overflow:hidden}
+        .value-card:hover{transform:translateY(-2px);border-color:#0ECB81}
+        .comparison-bar{position:relative;height:40px;background:#0b0e11;border-radius:8px;overflow:hidden}
+        .bar-actual{position:absolute;bottom:0;left:0;height:100%;background:linear-gradient(90deg,#0ECB81,#00FF88);transition:width 1s ease}
+        .bar-impulsive{position:absolute;bottom:0;right:0;height:100%;background:linear-gradient(90deg,#F6465D,#FF6B6B);transition:width 1s ease}
+        .timeline-dot{width:12px;height:12px;border-radius:50%;background:#0ECB81;border:2px solid #0b0e11;box-shadow:0 0 10px #0ECB81}
+        .timeline-line{position:absolute;left:5px;top:12px;bottom:0;width:2px;background:linear-gradient(to bottom,#0ECB81,#2B3139)}
+        .stat-number{font-variant-numeric:tabular-nums;transition:all .3s}
+        .saved-badge{background:linear-gradient(135deg,#0ECB81,#00FF88);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        @keyframes countUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .animate-count{animation:countUp 0.5s ease forwards}
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <div id="page-loader" class="absolute inset-0 hidden flex-col justify-center items-center">
+        <div class="scan-line"></div>
+        <div class="relative z-10 text-center">
+            <div class="text-[#FCD535] pixel-font text-2xl mb-6">SENTIENT OS</div>
+            <div class="w-80 h-2 bg-[#2B3139] rounded overflow-hidden"><div id="loader-progress" class="loader-bar h-full"></div></div>
+            <div class="text-[#0ECB81] font-mono text-sm mt-4">Opening Vault Safe...</div>
+        </div>
+    </div>
+
+    <header class="bg-[#181A20] border-b border-[#2B3139] flex flex-col">
+        <div class="h-14 px-6 flex items-center justify-between border-b border-[#2B3139]">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-[#FCD535] font-bold text-xl">SENTIENT</a>
+                <div class="text-sm text-[#848E9C]">/ Web3 Os</div>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+                <div><span class="text-[#848E9C]">USDT: </span><span id="usdt-balance" class="font-mono text-white">10000.00</span></div>
+                <div class="bg-[#2B3139] px-3 py-1 rounded text-[#FCD535] pixel-font text-[10px]"><span>PoD:</span><span>500</span></div>
+            </div>
+        </div>
+        <nav class="h-12 px-6 flex items-center gap-2">
+            <a href="exchange.html" class="nav-item"><span class="mr-1">📈</span>Trading Terminal</a>
+            <a href="pet.html" class="nav-item"><span class="mr-1">👾</span>NFT Pet Space</a>
+            <a href="vault.html" class="nav-item active"><span class="mr-1">🏦</span>Vault</a>
+            <a href="settings.html" class="nav-item"><span class="mr-1">🛡️</span>Defense Settings</a>
+        </nav>
+    </header>
+
+    <main class="flex-1 bg-[#0b0e11] overflow-y-auto p-8">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                <svg class="w-8 h-8 text-[#0ECB81]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Self-Discipline Yield Vault
+            </h2>
+            <p class="text-[#848E9C] mb-8">Restrain impulse, let your money work for you</p>
+
+            <!-- Three Column Layout -->
+            <div class="grid grid-cols-3 gap-6">
+
+                <!-- Left Column: Intercept Records -->
+                <div class="bg-[#181A20] border border-[#F6465D] rounded-xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#F6465D] to-[#FF6B6B]"></div>
+                    <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                        <span class="text-[#F6465D]">🚫</span> Intercept Records
+                    </h3>
+
+                    <!-- Cumulative Intercept Statistics -->
+                    <div class="mb-6">
+                        <div class="text-sm text-[#848E9C] mb-1">Total Intercepted Trades</div>
+                        <div class="text-3xl font-mono text-white" id="intercept-count">0 trades</div>
+                    </div>
+                    <div class="mb-6">
+                        <div class="text-sm text-[#848E9C] mb-1">Total Intercepted Amount</div>
+                        <div class="text-3xl font-mono text-[#F6465D]" id="intercept-total">$0.00</div>
+                    </div>
+
+                    <!-- Intercept Reason Distribution -->
+                    <div class="mb-4">
+                        <div class="text-sm text-[#848E9C] mb-2">Intercept Reason Distribution</div>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#F6465D]">🚫 Impulsive Trading</span>
+                                <span class="text-white" id="reason-fomo">0 times</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#FF6B6B]">📉 Fear Selling</span>
+                                <span class="text-white" id="reason-fud">0 times</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-[#FCD535]">🎰 Overtrading</span>
+                                <span class="text-white" id="reason-overtrade">0 times</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Intercept Records -->
+                    <div>
+                        <div class="text-sm text-[#848E9C] mb-2">Recent Intercepts</div>
+                        <div class="text-center text-[#848E9C] py-4 text-xs" id="recent-intercepts">No Records</div>
+                    </div>
+                </div>
+
+                <!-- Middle Column: Protocol Support -->
+                <div class="bg-[#181A20] border border-[#0ECB81] rounded-xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#0ECB81] to-[#00FF88]"></div>
+                    <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                        <span class="text-[#0ECB81]">🔗</span> Protocol Ecosystem
+                    </h3>
+
+                    <!-- Protocol List - Scrollable -->
+                    <div class="max-h-[400px] overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                        <!-- Aave Protocol -->
+                        <div class="bg-[#0b0e11] border border-[#0ECB81] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#0ECB81] rounded flex items-center justify-center text-sm">🏦</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Aave V3</div>
+                                        <div class="text-xs text-[#848E9C]">Lending Protocol</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#0ECB81] font-mono text-sm">12.50%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$9,252.30</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#0ECB81] h-1.5 rounded-full" style="width: 60%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Compound -->
+                        <div class="bg-[#0b0e11] border border-[#00D4FF] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#00D4FF] rounded flex items-center justify-center text-sm">💧</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Compound</div>
+                                        <div class="text-xs text-[#848E9C]">Lending Protocol</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#00D4FF] font-mono text-sm">8.20%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$3,855.12</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#00D4FF] h-1.5 rounded-full" style="width: 25%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Lido -->
+                        <div class="bg-[#0b0e11] border border-[#FF00FF] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#FF00FF] rounded flex items-center justify-center text-sm">🌊</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Lido</div>
+                                        <div class="text-xs text-[#848E9C]">Staking Protocol</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#FF00FF] font-mono text-sm">5.80%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$2,313.08</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#FF00FF] h-1.5 rounded-full" style="width: 15%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Curve -->
+                        <div class="bg-[#0b0e11] border border-[#FF6B6B] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#FF6B6B] rounded flex items-center justify-center text-sm">📈</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Curve</div>
+                                        <div class="text-xs text-[#848E9C]">Stablecoin DEX</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#FF6B6B] font-mono text-sm">4.50%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#FF6B6B] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Yearn -->
+                        <div class="bg-[#0b0e11] border border-[#FFFFFF] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#FFFFFF] rounded flex items-center justify-center text-sm">📊</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Yearn</div>
+                                        <div class="text-xs text-[#848E9C]">Yield Aggregator</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#FFFFFF] font-mono text-sm">15.20%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#FFFFFF] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Convex -->
+                        <div class="bg-[#0b0e11] border border-[#FCD535] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#FCD535] rounded flex items-center justify-center text-sm">🎯</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Convex</div>
+                                        <div class="text-xs text-[#848E9C]">Yield Optimizer</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#FCD535] font-mono text-sm">8.90%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#FCD535] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Uniswap -->
+                        <div class="bg-[#0b0e11] border border-[#FF007A] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#FF007A] rounded flex items-center justify-center text-sm">🦄</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Uniswap V3</div>
+                                        <div class="text-xs text-[#848E9C]">DEX</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#FF007A] font-mono text-sm">3.20%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#FF007A] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Balancer -->
+                        <div class="bg-[#0b0e11] border border-[#1E1E1E] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#1E1E1E] rounded flex items-center justify-center text-sm">⚖️</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Balancer</div>
+                                        <div class="text-xs text-[#848E9C]">AMM</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#848E9C] font-mono text-sm">6.50%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#848E9C] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- MakerDAO -->
+                        <div class="bg-[#0b0e11] border border-[#F5AC37] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#F5AC37] rounded flex items-center justify-center text-sm">🏛️</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">MakerDAO</div>
+                                        <div class="text-xs text-[#848E9C]">Stablecoin Protocol</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#F5AC37] font-mono text-sm">5.00%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#F5AC37] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Synthetix -->
+                        <div class="bg-[#0b0e11] border border-[#00D1FF] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#00D1FF] rounded flex items-center justify-center text-sm">🔮</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Synthetix</div>
+                                        <div class="text-xs text-[#848E9C]">Derivatives Protocol</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#00D1FF] font-mono text-sm">12.80%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#00D1FF] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Rocket Pool -->
+                        <div class="bg-[#0b0e11] border border-[#3CC8C8] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#3CC8C8] rounded flex items-center justify-center text-sm">🚀</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Rocket Pool</div>
+                                        <div class="text-xs text-[#848E9C]">ETH Staking</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#3CC8C8] font-mono text-sm">6.20%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#3CC8C8] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Frax -->
+                        <div class="bg-[#0b0e11] border border-[#7C3AED] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#7C3AED] rounded flex items-center justify-center text-sm">💎</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Frax</div>
+                                        <div class="text-xs text-[#848E9C]">Algorithmic Stablecoin</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#7C3AED] font-mono text-sm">4.80%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#7C3AED] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Instadapp -->
+                        <div class="bg-[#0b0e11] border border-[#2B3139] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#6366F1] rounded flex items-center justify-center text-sm">🔧</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Instadapp</div>
+                                        <div class="text-xs text-[#848E9C]">Aggregator</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#6366F1] font-mono text-sm">10.50%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#6366F1] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Pendle -->
+                        <div class="bg-[#0b0e11] border border-[#FF5C00] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#FF5C00] rounded flex items-center justify-center text-sm">📐</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Pendle</div>
+                                        <div class="text-xs text-[#848E9C]">Yield Trading</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#FF5C00] font-mono text-sm">18.30%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#FF5C00] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Gearbox -->
+                        <div class="bg-[#0b0e11] border border-[#12FFDD] rounded-lg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-8 h-8 bg-gradient-to-br from-[#2B3139] to-[#12FFDD] rounded flex items-center justify-center text-sm">⚙️</div>
+                                    <div>
+                                        <div class="text-white font-bold text-sm">Gearbox</div>
+                                        <div class="text-xs text-[#848E9C]">Leverage Protocol</div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-[#12FFDD] font-mono text-sm">22.40%</div>
+                                    <div class="text-xs text-[#848E9C]">APY</div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-[#848E9C]">Deposit:</span>
+                                <span class="text-white">$0.00</span>
+                            </div>
+                            <div class="w-full bg-[#2B3139] rounded-full h-1.5">
+                                <div class="bg-[#12FFDD] h-1.5 rounded-full" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Protocol Overview -->
+                    <div class="mt-4 pt-4 border-t border-[#2B3139]">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Total Protocol Deposits:</span>
+                            <span class="text-white font-mono" id="protocol-total">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Yield Status -->
+                <div class="bg-[#181A20] border border-[#FCD535] rounded-xl p-6 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#FCD535] to-[#FFD700]"></div>
+                    <h3 class="text-white font-bold mb-4 flex items-center gap-2">
+                        <span class="text-[#FCD535]">💰</span> Yield Status
+                    </h3>
+
+                    <!-- Total Yield -->
+                    <div class="mb-6">
+                        <div class="text-sm text-[#848E9C] mb-1">Total Cumulative Yield</div>
+                        <div class="text-4xl font-mono text-[#FCD535]" id="total-yield">+$0.00</div>
+                    </div>
+
+                    <!-- Principal -->
+                    <div class="mb-6">
+                        <div class="text-sm text-[#848E9C] mb-1">Current Principal</div>
+                        <div class="text-2xl font-mono text-white" id="vault-principal">$0.00</div>
+                    </div>
+
+                    <!-- Yield Rate -->
+                    <div class="mb-6">
+                        <div class="text-sm text-[#848E9C] mb-1">Average Yield Rate</div>
+                        <div class="text-2xl font-mono text-[#0ECB81]" id="avg-yield">0.00%</div>
+                    </div>
+
+                    <!-- Yield Details -->
+                    <div class="mb-4">
+                        <div class="text-sm text-[#848E9C] mb-2">Yield Details</div>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-[#848E9C]">Aave Yield:</span>
+                                <span class="text-[#0ECB81]" id="yield-aave">$0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-[#848E9C]">Compound Yield:</span>
+                                <span class="text-[#00D4FF]" id="yield-compound">$0.00</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-[#848E9C]">Lido Yield:</span>
+                                <span class="text-[#FF00FF]" id="yield-lido">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="mt-4 w-full py-3 bg-[#2B3139] hover:bg-[#FCD535] rounded text-sm font-bold text-white transition-colors">
+                        📤 Withdraw Yield
+                    </button>
+                </div>
+            </div>
+
+            <!-- Defense Value Analysis -->
+            <div class="value-card p-6 mt-8">
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#0ECB81]/20 to-[#FCD535]/20 flex items-center justify-center text-2xl">🛡️</div>
+                        <div>
+                            <h3 class="text-white font-bold text-lg">Defense Value Analysis</h3>
+                            <p class="text-xs text-[#848E9C]">What if there was no Neural Defense?</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-[#848E9C]">Losses Prevented for You</div>
+                        <div class="text-4xl font-mono saved-badge stat-number" id="saved-amount">$23,145.00</div>
+                    </div>
+                </div>
+
+                <!-- Comparison Timeline -->
+                <div class="grid grid-cols-2 gap-6 mb-6">
+                    <!-- Actual (With Defense) -->
+                    <div class="bg-[#0b0e11] rounded-xl p-4 border border-[#0ECB81]/30">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-[#0ECB81]/20 flex items-center justify-center">✓</div>
+                            <div class="text-[#0ECB81] font-bold">With Defense - Actual State</div>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-[#848E9C]">Total Intercepted Trades</span>
+                                <span class="text-xl font-mono text-white" id="actual-intercepts">128 trades</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-[#848E9C]">Intercepted Amount</span>
+                                <span class="text-xl font-mono text-[#0ECB81]" id="actual-amount">$89,250.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-[#848E9C]">Generated Yield</span>
+                                <span class="text-xl font-mono text-[#FCD535]" id="actual-yield">+$2,756.50</span>
+                            </div>
+                            <div class="pt-3 border-t border-[#2B3139]">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-[#848E9C]">Current Assets</span>
+                                    <span class="text-2xl font-mono text-white" id="actual-total">$92,006.50</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hypothetical (Impulsive Trading) -->
+                    <div class="bg-[#0b0e11] rounded-xl p-4 border border-[#F6465D]/30 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-[#F6465D]/10 rounded-full blur-3xl"></div>
+                        <div class="flex items-center gap-2 mb-4 relative z-10">
+                            <div class="w-8 h-8 rounded-lg bg-[#F6465D]/20 flex items-center justify-center">✗</div>
+                            <div class="text-[#F6465D] font-bold">Hypothetical Impulsive Trading</div>
+                        </div>
+                        <div class="space-y-3 relative z-10">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-[#848E9C]">Hypothetical Trade Count</span>
+                                <span class="text-xl font-mono text-white" id="假设-intercepts">128 trades</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-[#848E9C]">Hypothetical Trade Amount</span>
+                                <span class="text-xl font-mono text-[#F6465D]" id="假设-amount">$89,250.00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-[#848E9C]">Average Loss(-18%)</span>
+                                <span class="text-xl font-mono text-[#F6465D]" id="假设-loss">-$16,065.00</span>
+                            </div>
+                            <div class="pt-3 border-t border-[#2B3139]">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-[#848E9C]">Hypothetical Current Assets</span>
+                                    <span class="text-2xl font-mono text-[#F6465D]" id="假设-total">$73,185.00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Yield Comparison Bar -->
+                <div class="mb-6">
+                    <div class="text-sm text-[#848E9C] mb-3">Asset Comparison</div>
+                    <div class="comparison-bar">
+                        <div class="bar-actual" id="bar-actual" style="width: 56%"></div>
+                        <div class="bar-impulsive" id="bar-impulsive" style="width: 44%"></div>
+                    </div>
+                    <div class="flex justify-between mt-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded bg-[#0ECB81]"></div>
+                            <span class="text-[#0ECB81]">With Defense: <span class="font-mono" id="bar-actual-text">$92,006</span></span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[#F6465D]">Impulsive Trading: <span class="font-mono" id="bar-impulsive-text">$73,185</span></span>
+                            <div class="w-3 h-3 rounded bg-[#F6465D]"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Saved Timeline -->
+                <div>
+                    <div class="text-sm text-[#848E9C] mb-4">Defense Growth Timeline</div>
+                    <div class="relative pl-6 space-y-4" id="timeline-container">
+                        <div class="relative">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-line"></div>
+                            <div class="ml-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-[#848E9C]">March 15</span>
+                                    <span class="text-xs font-mono text-[#0ECB81]">Today's Cumulative: $23,145</span>
+                                </div>
+                                <div class="text-xs text-[#848E9C] mt-1">Intercepted 3 trades ($1,250) → Saved ~$1,025</div>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-line"></div>
+                            <div class="ml-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-[#848E9C]">March 14</span>
+                                    <span class="text-xs font-mono text-white">Cumulative: $22,120</span>
+                                </div>
+                                <div class="text-xs text-[#848E9C] mt-1">Intercepted 2 trades ($800) → Saved ~$656</div>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-line"></div>
+                            <div class="ml-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-[#848E9C]">March 13</span>
+                                    <span class="text-xs font-mono text-white">Cumulative: $21,464</span>
+                                </div>
+                                <div class="text-xs text-[#848E9C] mt-1">Intercepted 4 trades ($1,800) → Saved ~$1,476</div>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-line"></div>
+                            <div class="ml-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-[#848E9C]">March 12</span>
+                                    <span class="text-xs font-mono text-white">Cumulative: $19,988</span>
+                                </div>
+                                <div class="text-xs text-[#848E9C] mt-1">Intercepted 1 trade ($500) → Saved ~$410</div>
+                            </div>
+                        </div>
+                        <div class="relative">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-line" style="height: 0%"></div>
+                            <div class="ml-4">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs text-[#848E9C]">March 11</span>
+                                    <span class="text-xs font-mono text-white">Cumulative: $19,578</span>
+                                </div>
+                                <div class="text-xs text-[#848E9C] mt-1">Intercepted 3 trades ($1,400) → Saved ~$1,148</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const state = {
+            usdt: 10000,
+            // Intercept Records
+            interceptCount: 0,
+            interceptTotal: 0,
+            interceptReasons: { fomo: 0, fud: 0, overtrade: 0 },
+            recentIntercepts: [],
+            // Protocol Deposits
+            protocols: {
+                aave: { amount: 0, apy: 0.125, yield: 0, color: '#0ECB81' },
+                compound: { amount: 0, apy: 0.082, yield: 0, color: '#00D4FF' },
+                lido: { amount: 0, apy: 0.058, yield: 0, color: '#FF00FF' }
+            },
+            // Total Yield
+            totalYield: 0,
+            vaultBase: 0
+        };
+
+        // Demo Data
+        const mockIntercepts = [
+            { time: '2026-03-10 14:32', reason: 'Impulsive Trading', amount: 500, protocol: 'Aave' },
+            { time: '2026-03-09 09:15', reason: 'Fear Selling', amount: 1200, protocol: 'Compound' },
+            { time: '2026-03-08 21:45', reason: 'Overtrading', amount: 300, protocol: 'Aave' },
+            { time: '2026-03-07 16:20', reason: 'Impulsive Trading', amount: 800, protocol: 'Lido' },
+            { time: '2026-03-06 11:08', reason: 'Impulsive Trading', amount: 450, protocol: 'Aave' }
+        ];
+
+        // Defense Value Analysis Data
+        const defenseAnalysis = {
+            savedAmount: 0,
+            hypotheticalLoss: 0,
+            actualTotal: 0,
+            hypotheticalTotal: 0,
+            timeline: []
+        };
+
+        const formatMoney = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formatPercent = n => (n * 100).toFixed(2) + '%';
+
+        function initMockData() {
+            // Simulate some intercept data - more impressive numbers
+            state.interceptCount = 128;
+            state.interceptTotal = 89250.00;
+            state.interceptReasons = { fomo: 58, fud: 42, overtrade: 28 };
+            state.recentIntercepts = mockIntercepts;
+
+            // Simulate protocol deposit distribution - larger deposits
+            state.protocols.aave.amount = 52000.00;
+            state.protocols.compound.amount = 24500.00;
+            state.protocols.lido.amount = 12750.00;
+            state.vaultBase = state.interceptTotal;
+
+            // Calculate yield - higher yields
+            state.protocols.aave.yield = state.protocols.aave.amount * state.protocols.aave.apy * 0.25;
+            state.protocols.compound.yield = state.protocols.compound.amount * state.protocols.compound.apy * 0.25;
+            state.protocols.lido.yield = state.protocols.lido.amount * state.protocols.lido.apy * 0.25;
+            state.totalYield = state.protocols.aave.yield + state.protocols.compound.yield + state.protocols.lido.yield;
+
+            // Defense Value Analysis Calculation
+            const avgLossRate = 0.18; // Hypothetical impulsive trading average loss 18%
+            const avgAPY = 0.12; // Average yield APY after cooling period
+
+            // Actual state (funds after being intercepted)
+            const interceptedTotal = state.interceptTotal;
+            const actualYield = state.totalYield;
+            const actualTotal = interceptedTotal + actualYield;
+
+            // Hypothetical state after impulsive trading (all lost 18%)
+            const hypotheticalLoss = interceptedTotal * avgLossRate;
+            const hypotheticalTotal = interceptedTotal - hypotheticalLoss;
+
+            // Amount saved = Actual Amount - Hypothetical Amount
+            const savedAmount = actualTotal - hypotheticalTotal;
+
+            defenseAnalysis.savedAmount = savedAmount;
+            defenseAnalysis.hypotheticalLoss = hypotheticalLoss;
+            defenseAnalysis.actualTotal = actualTotal;
+            defenseAnalysis.hypotheticalTotal = hypotheticalTotal;
+
+            // Generate timeline data - simulate past 60 days of defense growth
+            const now = new Date();
+            for (let i = 60; i >= 0; i--) {
+                const date = new Date(now);
+                date.setDate(date.getDate() - i);
+
+                // Randomly generate more regular intercept data
+                const dayIntercepts = Math.floor(Math.random() * 4) + 1;
+                const dayAmount = dayIntercepts * 500 + Math.floor(Math.random() * 300);
+                const dayYield = dayAmount * avgAPY / 365 * (60 - i) * 0.5;
+
+                defenseAnalysis.timeline.push({
+                    date: date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
+                    intercepts: dayIntercepts,
+                    amount: dayAmount,
+                    yield: dayYield,
+                    saved: dayAmount * (1 - avgLossRate) + dayYield
+                });
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('usdt-balance').innerText = formatMoney(state.usdt);
+
+            // Intercept Records
+            document.getElementById('intercept-count').innerText = state.interceptCount + ' trades';
+            document.getElementById('intercept-total').innerText = '$' + formatMoney(state.interceptTotal);
+            document.getElementById('reason-fomo').innerText = state.interceptReasons.fomo + ' times';
+            document.getElementById('reason-fud').innerText = state.interceptReasons.fud + ' times';
+            document.getElementById('reason-overtrade').innerText = state.interceptReasons.overtrade + ' times';
+
+            // Recent Intercept Records
+            const recentList = document.getElementById('recent-intercepts');
+            if (state.recentIntercepts.length > 0) {
+                recentList.innerHTML = state.recentIntercepts.slice(0, 3).map(item => `
+                    <div class="flex justify-between items-center py-2 border-b border-[#2B3139] last:border-0">
+                        <div class="text-left">
+                            <div class="text-white text-xs">${item.reason}</div>
+                            <div class="text-[#848E9C] text-[10px]">${item.time}</div>
+                        </div>
+                        <div class="text-[#F6465D] font-mono text-xs">-$${formatMoney(item.amount)}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Protocol Deposits
+            document.getElementById('protocol-aave-amount').innerText = '$' + formatMoney(state.protocols.aave.amount);
+            document.getElementById('protocol-compound-amount').innerText = '$' + formatMoney(state.protocols.compound.amount);
+            document.getElementById('protocol-lido-amount').innerText = '$' + formatMoney(state.protocols.lido.amount);
+
+            const totalProtocol = state.protocols.aave.amount + state.protocols.compound.amount + state.protocols.lido.amount;
+            document.getElementById('protocol-total').innerText = '$' + formatMoney(totalProtocol);
+
+            // Update Progress Bar
+            document.getElementById('protocol-aave-bar').style.width = (state.protocols.aave.amount / totalProtocol * 100) + '%';
+            document.getElementById('protocol-compound-bar').style.width = (state.protocols.compound.amount / totalProtocol * 100) + '%';
+            document.getElementById('protocol-lido-bar').style.width = (state.protocols.lido.amount / totalProtocol * 100) + '%';
+
+            // Yield
+            document.getElementById('total-yield').innerText = '+$' + formatMoney(state.totalYield);
+            document.getElementById('vault-principal').innerText = '$' + formatMoney(state.vaultBase);
+
+            const avgYield = state.vaultBase > 0 ? (state.totalYield / state.vaultBase) : 0;
+            document.getElementById('avg-yield').innerText = formatPercent(avgYield);
+
+            // Yield Details
+            document.getElementById('yield-aave').innerText = '$' + formatMoney(state.protocols.aave.yield);
+            document.getElementById('yield-compound').innerText = '$' + formatMoney(state.protocols.compound.yield);
+            document.getElementById('yield-lido').innerText = '$' + formatMoney(state.protocols.lido.yield);
+
+            // Update Defense Value Analysis
+            updateDefenseAnalysis();
+        }
+
+        function updateDefenseAnalysis() {
+            // Update Saved Amount
+            document.getElementById('saved-amount').innerText = '$' + formatMoney(defenseAnalysis.savedAmount);
+
+            // Actual State (With Defense)
+            document.getElementById('actual-intercepts').innerText = state.interceptCount + ' trades';
+            document.getElementById('actual-amount').innerText = '$' + formatMoney(state.interceptTotal);
+            document.getElementById('actual-yield').innerText = '+$' + formatMoney(state.totalYield);
+            document.getElementById('actual-total').innerText = '$' + formatMoney(defenseAnalysis.actualTotal);
+
+            // Hypothetical State (Impulsive Trading)
+            document.getElementById('假设-intercepts').innerText = state.interceptCount + ' trades';
+            document.getElementById('假设-amount').innerText = '$' + formatMoney(state.interceptTotal);
+            document.getElementById('假设-loss').innerText = '-$' + formatMoney(defenseAnalysis.hypotheticalLoss);
+            document.getElementById('假设-total').innerText = '$' + formatMoney(defenseAnalysis.hypotheticalTotal);
+
+            // Comparison Bar
+            const maxValue = Math.max(defenseAnalysis.actualTotal, defenseAnalysis.hypotheticalTotal);
+            const actualPercent = (defenseAnalysis.actualTotal / maxValue) * 100;
+            const impulsivePercent = (defenseAnalysis.hypotheticalTotal / maxValue) * 100;
+
+            setTimeout(() => {
+                document.getElementById('bar-actual').style.width = actualPercent + '%';
+                document.getElementById('bar-impulsive').style.width = impulsivePercent + '%';
+                document.getElementById('bar-actual-text').innerText = '$' + formatMoney(defenseAnalysis.actualTotal);
+                document.getElementById('bar-impulsive-text').innerText = '$' + formatMoney(defenseAnalysis.hypotheticalTotal);
+            }, 300);
+
+            // Timeline
+            const timelineContainer = document.getElementById('timeline-container');
+            let cumulativeSaved = 0;
+            timelineContainer.innerHTML = defenseAnalysis.timeline.map((day, index) => {
+                cumulativeSaved += day.saved;
+                const isToday = index === defenseAnalysis.timeline.length - 1;
+                return `
+                    <div class="relative">
+                        <div class="timeline-dot ${isToday ? 'animate-pulse' : ''}"></div>
+                        <div class="timeline-line" style="height: ${index === defenseAnalysis.timeline.length - 1 ? '0' : '100%'}"></div>
+                        <div class="ml-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-[#848E9C]">${day.date}</span>
+                                <span class="text-xs font-mono ${isToday ? 'text-[#0ECB81]' : 'text-white'}">${isToday ? "Today's Cumulative" : "Cumulative"}: $${formatMoney(cumulativeSaved)}</span>
+                            </div>
+                            <div class="text-xs text-[#848E9C] mt-1">
+                                Intercepted ${day.intercepts} trades ($${formatMoney(day.amount)}) → Saved ~$${formatMoney(day.saved)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function runBoot() {
+            const l = document.getElementById('page-loader'), p = document.getElementById('loader-progress');
+            l.classList.remove('hidden'); l.classList.add('flex');
+            setTimeout(() => p.style.width = '50%', 100);
+            setTimeout(() => p.style.width = '100%', 400);
+            setTimeout(() => { l.classList.add('hidden'); l.classList.remove('flex'); p.style.width = '0%'; }, 700);
+        }
+
+        // Real-time Yield Calculation
+        setInterval(() => {
+            if (state.vaultBase > 0) {
+                const dailyYield = state.vaultBase * 0.10 / 365;
+                state.totalYield += dailyYield / 86400;
+
+                // Update Each Protocol Yield
+                state.protocols.aave.yield += state.protocols.aave.amount * state.protocols.aave.apy / 365 / 86400;
+                state.protocols.compound.yield += state.protocols.compound.amount * state.protocols.compound.apy / 365 / 86400;
+                state.protocols.lido.yield += state.protocols.lido.amount * state.protocols.lido.apy / 365 / 86400;
+
+                // Update Defense Value Analysis Data
+                defenseAnalysis.actualTotal = state.interceptTotal + state.totalYield;
+                defenseAnalysis.savedAmount = defenseAnalysis.actualTotal - defenseAnalysis.hypotheticalTotal;
+
+                updateUI();
+            }
+        }, 1000);
+
+        window.addEventListener('load', () => {
+            runBoot();
+            initMockData();
+            updateUI();
+        });
+    </script>
+</body>
+</html>

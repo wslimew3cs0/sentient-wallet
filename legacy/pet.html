@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFT Pet Space - Sentient Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #0b0e11; color: #EAECEF; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .pixel-font { font-family: 'Press Start 2P', cursive; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2B3139; border-radius: 3px; }
+        canvas.pet-render { image-rendering: pixelated; }
+        .pet-glow-cyan { box-shadow: 0 0 20px rgba(0, 212, 255, 0.4), inset 0 0 20px rgba(0, 212, 255, 0.1); }
+        .pet-glow-pink { box-shadow: 0 0 20px rgba(255, 51, 102, 0.4), inset 0 0 20px rgba(255, 51, 102, 0.1); }
+        .pet-glow-gold { box-shadow: 0 0 20px rgba(255, 215, 0, 0.4), inset 0 0 20px rgba(255, 215, 0, 0.1); }
+        .pet-glow-green { box-shadow: 0 0 20px rgba(14, 203, 129, 0.4), inset 0 0 20px rgba(14, 203, 129, 0.1); }
+        .pet-glow-purple { box-shadow: 0 0 20px rgba(139, 92, 246, 0.4), inset 0 0 20px rgba(139, 92, 246, 0.1); }
+        @keyframes petFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        .pet-animate { animation: petFloat 3s ease-in-out infinite; }
+        @keyframes borderGlow {
+            0%, 100% { border-color: rgba(0, 212, 255, 0.3); }
+            50% { border-color: rgba(0, 212, 255, 0.8); }
+        }
+        .tier-badge { backdrop-filter: blur(4px); }
+        .nav-item { padding: 0.5rem 1rem; color: #848E9C; border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; font-weight: 600; text-decoration: none; display: inline-block; }
+        .nav-item:hover { color: #EAECEF; }
+        .nav-item.active { color: #FCD535; border-bottom-color: #FCD535; }
+        .toast { animation: slideInRight 0.3s forwards, fadeOut 0.5s 2.5s forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes legendaryPulse {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 107, 53, 0.3), 0 0 30px rgba(255, 7, 58, 0.2); }
+            50% { box-shadow: 0 0 25px rgba(255, 107, 53, 0.6), 0 0 50px rgba(255, 7, 58, 0.4); }
+        }
+        @keyframes epicGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(139, 92, 246, 0.3), 0 0 20px rgba(217, 70, 239, 0.2); }
+            50% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), 0 0 40px rgba(217, 70, 239, 0.4); }
+        }
+        .legendary-card { animation: legendaryPulse 2s ease-in-out infinite; }
+        .epic-card { animation: epicGlow 2.5s ease-in-out infinite; }
+        .pet-card-hover:hover { transform: translateY(-8px) scale(1.02); }
+        .pet-card-hover { transition: all 0.3s ease; }
+        #page-loader { background-color: #0b0e11; z-index: 9999; overflow: hidden; }
+        .loader-bar { width: 0%; height: 2px; background-color: #FCD535; transition: width 0.4s ease-out; }
+        @keyframes scanLine { 0% { top: 0%; opacity: 1; } 50% { opacity: 0.5; } 100% { top: 100%; opacity: 1; } }
+        .scan-line { position: absolute; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #0ECB81, transparent); animation: scanLine 1.5s ease-in-out infinite; box-shadow: 0 0 20px #0ECB81; }
+        @keyframes glow { 0%, 100% { box-shadow: 0 0 10px rgba(14,203,129,0.5); } 50% { box-shadow: 0 0 25px rgba(14,203,129,0.8); } }
+        .pet-glow { animation: glow 2s infinite; }
+        .tab-btn { padding: 0.5rem 1.5rem; background: #181A20; border: 1px solid #2B3139; color: #848E9C; cursor: pointer; transition: all 0.2s; }
+        .tab-btn.active { background: #FCD535; color: #0b0e11; border-color: #FCD535; }
+        .tab-btn:hover:not(.active) { border-color: #FCD535; color: #FCD535; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <!-- Startup Animation -->
+    <div id="page-loader" class="absolute inset-0 hidden flex-col justify-center items-center">
+        <div class="scan-line"></div>
+        <div class="relative z-10 text-center">
+            <div class="text-[#FCD535] pixel-font text-2xl mb-6">SENTIENT OS</div>
+            <div class="w-80 h-2 bg-[#2B3139] rounded overflow-hidden mb-4">
+                <div id="loader-progress" class="loader-bar h-full"></div>
+            </div>
+            <div class="text-[#0ECB81] font-mono text-sm">Entering Pet Space...</div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast-container" class="absolute bottom-6 right-6 z-[9000] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Try-On Modal -->
+    <div id="tryon-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm">
+        <div class="bg-[#181A20] border border-[#2B3139] rounded-xl w-[600px] p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-white">Try-On Room</h2>
+                <button onclick="closeTryon()" class="text-[#848E9C] hover:text-white text-2xl">&times;</button>
+            </div>
+
+            <div class="flex gap-8">
+                <!-- Preview Area -->
+                <div class="w-64 h-64 bg-[#0b0e11] rounded-xl border-2 border-[#2B3139] flex items-center justify-center relative pet-glow">
+                    <canvas id="tryon-canvas" width="192" height="192" class="pet-render"></canvas>
+                </div>
+
+                <!-- Equipment Selection -->
+                <div class="flex-1">
+                    <h3 class="text-white font-bold mb-4">Select Accessories</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="tryAccessory('none')" class="tryon-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="none">
+                            <div class="text-white font-bold">None</div>
+                            <div class="text-xs text-[#848E9C]">Original Form</div>
+                        </button>
+                        <button onclick="tryAccessory('glasses')" class="tryon-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="glasses">
+                            <div class="text-white font-bold">🕶️ Degen Glasses</div>
+                            <div class="text-xs text-[#848E9C]">Hides panic in eyes</div>
+                        </button>
+                        <button onclick="tryAccessory('crown')" class="tryon-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="crown">
+                            <div class="text-white font-bold">👑 Diamond Crown</div>
+                            <div class="text-xs text-[#848E9C]">For the disciplined</div>
+                        </button>
+                        <button onclick="tryAccessory('headphones')" class="tryon-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="headphones">
+                            <div class="text-white font-bold">🎧 Noise-Canceling Headphones</div>
+                            <div class="text-xs text-[#848E9C]">Blocks out noise</div>
+                        </button>
+                        <button onclick="tryAccessory('bandana')" class="tryon-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="bandana">
+                            <div class="text-white font-bold">🧣 Red Headband</div>
+                            <div class="text-xs text-[#848E9C]">Warrior spirit</div>
+                        </button>
+                        <button onclick="tryAccessory('scarf')" class="tryon-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="scarf">
+                            <div class="text-white font-bold">🧣 Wisdom Scarf</div>
+                            <div class="text-xs text-[#848E9C]">Scholar aura</div>
+                        </button>
+                    </div>
+
+                    <div class="mt-6">
+                        <h3 class="text-white font-bold mb-3">Select Form</h3>
+                        <div class="flex gap-2">
+                            <button onclick="tryForm('normal')" class="tryon-form-btn px-4 py-2 bg-[#0b0e11] border border-[#2B3139] rounded text-sm hover:border-[#0ECB81]" data-form="normal">Normal</button>
+                            <button onclick="tryForm('happy')" class="tryon-form-btn px-4 py-2 bg-[#0b0e11] border border-[#2B3139] rounded text-sm hover:border-[#0ECB81]" data-form="happy">Happy</button>
+                            <button onclick="tryForm('stressed')" class="tryon-form-btn px-4 py-2 bg-[#0b0e11] border border-[#2B3139] rounded text-sm hover:border-[#FCD535]" data-form="stressed">Stressed</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeTryon()" class="px-4 py-2 bg-[#2B3139] text-white rounded">Cancel</button>
+                <button onclick="applyTryon()" class="px-4 py-2 bg-[#FCD535] text-black font-bold rounded">Apply Equipment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Navigation -->
+    <header class="bg-[#181A20] border-b border-[#2B3139] flex flex-col flex-shrink-0">
+        <div class="h-14 px-6 flex items-center justify-between border-b border-[#2B3139]">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-[#FCD535] font-bold text-xl tracking-wider hover:text-white">SENTIENT</a>
+                <div class="text-sm text-[#848E9C] hidden md:block">/ Web3 Os</div>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+                <div><span class="text-[#848E9C]">USDT: </span><span id="usdt-balance" class="font-mono text-white">10000.00</span></div>
+                <div class="bg-[#2B3139] px-3 py-1 rounded text-[#FCD535] pixel-font text-[10px]"><span>PoD:</span><span id="pod-score">500</span></div>
+            </div>
+        </div>
+        <nav class="h-12 px-6 flex items-center gap-2">
+            <a href="exchange.html" class="nav-item"><span class="mr-1">📈</span>Trading Terminal</a>
+            <a href="pet.html" class="nav-item active"><span class="mr-1">👾</span>NFT Pet Space</a>
+            <a href="vault.html" class="nav-item"><span class="mr-1">🏦</span>Vault</a>
+            <a href="settings.html" class="nav-item"><span class="mr-1">🛡️</span>Defense Settings</a>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 bg-[#0b0e11] overflow-y-auto p-8">
+        <div class="max-w-6xl mx-auto">
+            <!-- Tab Navigation -->
+            <div class="flex gap-2 mb-6">
+                <button onclick="switchPetTab('my')" class="tab-btn active" data-tab="my">My Pet</button>
+                <button onclick="switchPetTab('evolution')" class="tab-btn" data-tab="evolution">Evolution Path</button>
+                <button onclick="switchPetTab('dress')" class="tab-btn" data-tab="dress">Try-On Room</button>
+                <button onclick="switchPetTab('gallery')" class="tab-btn" data-tab="gallery">Player Showcase</button>
+            </div>
+
+            <!-- Tab: My Pet -->
+            <div id="tab-my" class="pet-tab">
+                <div class="flex justify-between items-end border-b border-[#2B3139] pb-4 mb-8">
+                    <div>
+                        <h2 class="text-3xl font-bold text-white mb-2 flex items-center gap-3">
+                            <span class="text-4xl">👾</span> My Digital Soul
+                        </h2>
+                        <p class="text-[#848E9C]">NFT pets that sync with your emotions, your self-discipline companion</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-[#848E9C] mb-1">Token Balance</div>
+                        <div class="text-2xl font-mono text-[#FCD535] bg-[#181A20] border border-[#2B3139] px-4 py-2 rounded-lg">
+                            <span id="token-balance">0.00</span> $SENTIENT
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-12 gap-8">
+                    <!-- Pet Display -->
+                    <div class="col-span-12 lg:col-span-5 bg-[#181A20] border border-[#2B3139] rounded-xl p-8 flex flex-col items-center">
+                        <div class="w-full flex justify-between items-start mb-6">
+                            <h2 class="text-[#EAECEF] font-bold text-lg">My Digital Soul</h2>
+                            <span id="pet-badge" class="px-2 py-1 bg-[#2B3139] text-[#0ECB81] text-[10px] pixel-font rounded border border-[#0ECB81]">LV.1 Infant Stage</span>
+                        </div>
+
+                        <div class="w-64 h-64 bg-[#0b0e11] rounded-xl border-4 border-[#2B3139] flex justify-center items-center mb-6 pet-glow">
+                            <canvas id="pet-canvas" width="256" height="256" class="pet-render w-48 h-48"></canvas>
+                        </div>
+
+                        <!-- Equipment Display -->
+                        <div class="w-full bg-[#0b0e11] border border-[#2B3139] rounded p-4 mb-4">
+                            <div class="text-xs text-[#848E9C] mb-2">Current Equipment</div>
+                            <div id="equipped-list" class="flex gap-2 flex-wrap">
+                                <span class="text-xs text-[#848E9C]">No Equipment</span>
+                            </div>
+                        </div>
+
+                        <div class="w-full bg-[#0b0e11] border border-[#2B3139] rounded p-4">
+                            <div class="flex justify-between text-sm mb-2 text-[#848E9C]">
+                                <span>Level <span id="pet-level" class="text-[#FCD535] text-lg">1</span></span>
+                                <span><span id="pet-xp" class="text-white">0</span> / 100 EXP</span>
+                            </div>
+                            <div class="h-2 w-full bg-[#2B3139] rounded-full overflow-hidden mb-4">
+                                <div id="xp-bar" class="h-full bg-[#FCD535] w-0"></div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 border-t border-[#2B3139] pt-4">
+                                <div><div class="text-[10px] text-[#848E9C]">PoD Credit Score</div><div id="pod-display" class="text-[#FCD535] font-mono text-lg">500</div></div>
+                                <div><div class="text-[10px] text-[#848E9C]">Intercepts</div><div class="text-white font-mono text-lg"><span id="intercept-count">0</span></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Accessory Shop -->
+                    <div class="col-span-12 lg:col-span-7 flex flex-col gap-4">
+                        <h3 class="text-white font-bold text-lg">🛍️ Accessory Boutique</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-[#181A20] border border-[#2B3139] rounded-xl p-4 flex gap-4 hover:border-[#FCD535] transition-colors">
+                                <div class="w-16 h-16 bg-[#0b0e11] rounded flex items-center justify-center border border-[#2B3139]"><span class="text-3xl">🕶️</span></div>
+                                <div class="flex-1 flex flex-col justify-between">
+                                    <div><h4 class="text-white font-bold text-sm">Degen Glasses</h4><p class="text-xs text-[#848E9C]">Hides panic in eyes</p></div>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="text-[#FCD535] font-mono">50 $SENT</span>
+                                        <button onclick="buyAccessory('glasses',50)" id="btn-glasses" class="px-3 py-1 bg-[#2B3139] hover:bg-[#FCD535] rounded text-xs text-white">Buy</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-[#181A20] border border-[#2B3139] rounded-xl p-4 flex gap-4 hover:border-[#FCD535] transition-colors">
+                                <div class="w-16 h-16 bg-[#0b0e11] rounded flex items-center justify-center border border-[#2B3139]"><span class="text-3xl">👑</span></div>
+                                <div class="flex-1 flex flex-col justify-between">
+                                    <div><h4 class="text-white font-bold text-sm">Diamond Crown</h4><p class="text-xs text-[#848E9C]">For the disciplined</p></div>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="text-[#FCD535] font-mono">200 $SENT</span>
+                                        <button onclick="buyAccessory('crown',200)" id="btn-crown" class="px-3 py-1 bg-[#2B3139] hover:bg-[#FCD535] rounded text-xs text-white">Buy</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-[#181A20] border border-[#2B3139] rounded-xl p-4 flex gap-4 hover:border-[#FCD535] transition-colors">
+                                <div class="w-16 h-16 bg-[#0b0e11] rounded flex items-center justify-center border border-[#2B3139]"><span class="text-3xl">🎧</span></div>
+                                <div class="flex-1 flex flex-col justify-between">
+                                    <div><h4 class="text-white font-bold text-sm">Noise-Canceling Headphones</h4><p class="text-xs text-[#848E9C]">Blocks noise interference</p></div>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="text-[#FCD535] font-mono">150 $SENT</span>
+                                        <button onclick="buyAccessory('headphones',150)" id="btn-headphones" class="px-3 py-1 bg-[#2B3139] hover:bg-[#FCD535] rounded text-xs text-white">Buy</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-[#181A20] border border-[#2B3139] rounded-xl p-4 flex gap-4 hover:border-[#FCD535] transition-colors">
+                                <div class="w-16 h-16 bg-[#0b0e11] rounded flex items-center justify-center border border-[#2B3139]"><span class="text-3xl">🧣</span></div>
+                                <div class="flex-1 flex flex-col justify-between">
+                                    <div><h4 class="text-white font-bold text-sm">Red Headband</h4><p class="text-xs text-[#848E9C]">Warrior spirit</p></div>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span class="text-[#FCD535] font-mono">100 $SENT</span>
+                                        <button onclick="buyAccessory('bandana',100)" id="btn-bandana" class="px-3 py-1 bg-[#2B3139] hover:bg-[#FCD535] rounded text-xs text-white">Buy</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="openTryon()" class="mt-4 w-full py-3 bg-[#181A20] border border-dashed border-[#FCD535] rounded-xl text-[#FCD535] hover:bg-[#FCD535] hover:text-black transition-colors">
+                            🎨 Open Try-On Room
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Evolution Path -->
+            <div id="tab-evolution" class="pet-tab hidden">
+                <h2 class="text-2xl font-bold text-white mb-6">🧬 Evolution Path</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <!-- Infant Stage -->
+                    <div class="bg-[#181A20] border border-[#0ECB81] rounded-xl p-6 relative">
+                        <div class="absolute -top-3 left-4 px-3 py-1 bg-[#0ECB81] text-black text-xs font-bold rounded">Stage 1</div>
+                        <div class="text-6xl text-center my-4">👾</div>
+                        <h3 class="text-white font-bold text-center mb-2">Infant Stage</h3>
+                        <div class="text-xs text-[#848E9C] text-center mb-4">Initial Form</div>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="text-[#848E9C]">Level Req</span><span class="text-white">Lv.1</span></div>
+                            <div class="flex justify-between"><span class="text-[#848E9C]">EXP Req</span><span class="text-white">0</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Growth Stage -->
+                    <div class="bg-[#181A20] border border-[#FCD535] rounded-xl p-6 relative opacity-60">
+                        <div class="absolute -top-3 left-4 px-3 py-1 bg-[#FCD535] text-black text-xs font-bold rounded">Stage 2</div>
+                        <div class="text-6xl text-center my-4 filter hue-rotate-45">👾</div>
+                        <h3 class="text-white font-bold text-center mb-2">Growth Stage</h3>
+                        <div class="text-xs text-[#848E9C] text-center mb-4">Requires 100 intercepts</div>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="text-[#848E9C]">Level Req</span><span class="text-white">Lv.5</span></div>
+                            <div class="flex justify-between"><span class="text-[#848E9C]">EXP Req</span><span class="text-white">500</span></div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-[#2B3139]">
+                            <div class="text-xs text-[#FCD535]">+ Immune to low-risk trades</div>
+                            <div class="text-xs text-[#FCD535]">+ Get "Steady Gaze" appearance</div>
+                        </div>
+                    </div>
+
+                    <!-- Full Form -->
+                    <div class="bg-[#181A20] border border-[#F6465D] rounded-xl p-6 relative opacity-40">
+                        <div class="absolute -top-3 left-4 px-3 py-1 bg-[#F6465D] text-white text-xs font-bold rounded">Stage 3</div>
+                        <div class="text-6xl text-center my-4 filter hue-rotate-90 saturate-150">👾</div>
+                        <h3 class="text-white font-bold text-center mb-2">Full Form</h3>
+                        <div class="text-xs text-[#848E9C] text-center mb-4">Requires 500 intercepts</div>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between"><span class="text-[#848E9C]">Level Req</span><span class="text-white">Lv.10</span></div>
+                            <div class="flex justify-between"><span class="text-[#848E9C]">EXP Req</span><span class="text-white">2000</span></div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-[#2B3139]">
+                            <div class="text-xs text-[#F6465D]">+ Immune to medium-risk trades</div>
+                            <div class="text-xs text-[#F6465D]">+ Get "Golden Aura" effect</div>
+                            <div class="text-xs text-[#F6465D]">+ Trade bonus +10%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Evolution Progress -->
+                <div class="bg-[#181A20] border border-[#2B3139] rounded-xl p-6">
+                    <h3 class="text-white font-bold mb-4">🎯 Evolution Progress</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-[#848E9C]">Current Level</span>
+                                <span class="text-[#FCD535]">Lv.1 / Lv.5</span>
+                            </div>
+                            <div class="h-2 bg-[#2B3139] rounded-full overflow-hidden">
+                                <div class="h-full bg-[#FCD535] w-[10%]"></div>
+                            </div>
+                            <div class="text-xs text-[#848E9C] mt-1">Still need 400 more intercepts to evolve to Growth Stage</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Try-On Room -->
+            <div id="tab-dress" class="pet-tab hidden">
+                <h2 class="text-2xl font-bold text-white mb-6">🎨 Try-On Room</h2>
+
+                <div class="flex gap-8">
+                    <div class="w-80 h-80 bg-[#181A20] border-2 border-[#FCD535] rounded-xl flex items-center justify-center pet-glow">
+                        <canvas id="dress-canvas" width="256" height="256" class="pet-render"></canvas>
+                    </div>
+
+                    <div class="flex-1">
+                        <h3 class="text-white font-bold mb-4">Accessory Preview</h3>
+                        <div class="grid grid-cols-2 gap-3 mb-6">
+                            <button onclick="tryAccessory('none')" class="try-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="none">
+                                <div class="text-white">None</div>
+                            </button>
+                            <button onclick="tryAccessory('glasses')" class="try-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="glasses">
+                                <div class="text-white">🕶️ Degen Glasses</div>
+                            </button>
+                            <button onclick="tryAccessory('crown')" class="try-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="crown">
+                                <div class="text-white">👑 Diamond Crown</div>
+                            </button>
+                            <button onclick="tryAccessory('headphones')" class="try-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="headphones">
+                                <div class="text-white">🎧 Noise-Canceling Headphones</div>
+                            </button>
+                            <button onclick="tryAccessory('bandana')" class="try-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="bandana">
+                                <div class="text-white">🧣 Red Headband</div>
+                            </button>
+                            <button onclick="tryAccessory('scarf')" class="try-btn p-3 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535] text-left" data-item="scarf">
+                                <div class="text-white">🧣 Wisdom Scarf</div>
+                            </button>
+                        </div>
+
+                        <h3 class="text-white font-bold mb-4">Form Selection</h3>
+                        <div class="flex gap-2 mb-6">
+                            <button onclick="tryForm('normal')" class="form-btn px-4 py-2 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#0ECB81]" data-form="normal">Normal</button>
+                            <button onclick="tryForm('happy')" class="form-btn px-4 py-2 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#0ECB81]" data-form="happy">Happy</button>
+                            <button onclick="tryForm('stressed')" class="form-btn px-4 py-2 bg-[#0b0e11] border border-[#2B3139] rounded hover:border-[#FCD535]" data-form="stressed">Stressed</button>
+                        </div>
+
+                        <button onclick="applyTryon()" class="w-full py-3 bg-[#FCD535] text-black font-bold rounded-xl hover:bg-[#e6c130]">
+                            ✅ Apply Equipment
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Player Showcase -->
+            <div id="tab-gallery" class="pet-tab hidden">
+                <h2 class="text-2xl font-bold text-white mb-6">🌐 Player Pet Gallery</h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Player 1 - Mech Titan -->
+                    <div class="bg-[#181A20] border border-[#FCD535] rounded-xl p-6 relative overflow-hidden pet-card-hover legendary-card">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-[#FCD535] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-lg">⚙️</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x8a...4f2e</div>
+                                <div class="text-xs text-[#FCD535]">Lv.45 Mech Titan <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#FF6B35] to-[#FF073A] text-white text-[8px] rounded">Legendary</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#FCD535] relative">
+                            <canvas id="gallery-pet-1" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#FCD535] opacity-50">CYBER</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#FCD535]/20 text-[#FCD535] rounded">S-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">124</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">2800</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#00FFFF]">⚙️</span> <span class="text-[#FF00FF]">🔧</span></div>
+                    </div>
+
+                    <!-- Player 2 - Ghost Walker -->
+                    <div class="bg-[#181A20] border border-[#0ECB81] rounded-xl p-6 relative overflow-hidden pet-card-hover epic-card">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-[#0ECB81] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-lg">👻</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x3b...9a11</div>
+                                <div class="text-xs text-[#0ECB81]">Lv.12 Ghost Walker <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#8B5CF6] to-[#D946EF] text-white text-[8px] rounded">Epic</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#0ECB81] relative">
+                            <canvas id="gallery-pet-2" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#00FFFF] opacity-50">GHOST</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#8B5CF6]/20 text-[#8B5CF6] rounded">A-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">28</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">850</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#00FFFF]">🔮</span></div>
+                    </div>
+
+                    <!-- Player 3 - Fire Dragon -->
+                    <div class="bg-[#181A20] border border-[#F6465D] rounded-xl p-6 relative overflow-hidden pet-card-hover legendary-card">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-[#F6465D] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center text-lg">🐲</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x1c...7d23</div>
+                                <div class="text-xs text-[#F6465D]">Lv.8 Fire Dragon <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#FF6B35] to-[#FF073A] text-white text-[8px] rounded">Legendary</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#F6465D] relative">
+                            <canvas id="gallery-pet-3" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#FF6B35] opacity-50">BLAZE</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#F6465D]/20 text-[#F6465D] rounded">S-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">15</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">420</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#FF6B35]">🔥</span></div>
+                    </div>
+
+                    <!-- Player 4 - Shadow Cat -->
+                    <div class="bg-[#181A20] border border-[#2B3139] rounded-xl p-6 relative overflow-hidden pet-card-hover">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-[#2B3139] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-gray-500 to-slate-500 rounded-full flex items-center justify-center text-lg">🐈</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x9f...2b45</div>
+                                <div class="text-xs text-[#848E9C]">Lv.3 Shadow Cat <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#5B8DEF] to-[#00D4FF] text-white text-[8px] rounded">Rare</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#2B3139] relative">
+                            <canvas id="gallery-pet-4" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#848E9C] opacity-50">SHADOW</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#2B3139]/50 text-[#848E9C] rounded">C-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">3</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">180</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#848E9C]">🐟</span></div>
+                    </div>
+
+                    <!-- Player 5 - Star Mentor -->
+                    <div class="bg-[#181A20] border border-[#0ECB81] rounded-xl p-6 relative overflow-hidden pet-card-hover epic-card">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-[#0ECB81] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-lime-500 rounded-full flex items-center justify-center text-lg">🌟</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x7e...1a88</div>
+                                <div class="text-xs text-[#0ECB81]">Lv.22 Star Mentor <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#8B5CF6] to-[#D946EF] text-white text-[8px] rounded">Epic</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#0ECB81] relative">
+                            <canvas id="gallery-pet-5" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#00FF88] opacity-50">STELLAR</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#8B5CF6]/20 text-[#8B5CF6] rounded">A-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">56</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">1200</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#00FF88]">🛸</span> <span class="text-[#00FFFF]">🌟</span></div>
+                    </div>
+
+                    <!-- Player 6 - Dream Unicorn -->
+                    <div class="bg-[#181A20] border border-[#FCD535] rounded-xl p-6 relative overflow-hidden pet-card-hover legendary-card">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-[#FCD535] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-lg">🦄</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x2d...5c67</div>
+                                <div class="text-xs text-[#FCD535]">Lv.2 Dream Unicorn <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#FF6B35] to-[#FF073A] text-white text-[8px] rounded">Legendary</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#FCD535] relative">
+                            <canvas id="gallery-pet-6" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#FF69B4] opacity-50">DREAM</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#FF69B4]/20 text-[#FF69B4] rounded">S-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">1</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">80</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#FF69B4]">✨</span> <span class="text-[#DA70D6]">🌈</span></div>
+                    </div>
+
+                    <!-- Player 7 - Death Knight -->
+                    <div class="bg-[#181A20] border border-[#848E9C] rounded-xl p-6 relative overflow-hidden pet-card-hover legendary-card">
+                        <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-bl from-[#848E9C] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-gray-700 to-gray-900 rounded-full flex items-center justify-center text-lg">💀</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x5a...8c34</div>
+                                <div class="text-xs text-[#848E9C]">Lv.18 Death Knight <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#FF6B35] to-[#FF073A] text-white text-[8px] rounded">Legendary</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#848E9C] relative">
+                            <canvas id="gallery-pet-7" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#FF073A] opacity-50">DEATH</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#FF073A]/20 text-[#FF073A] rounded">S-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">42</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">980</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#FF073A]">⚔️</span> <span class="text-[#C0C0C0]">🛡️</span></div>
+                    </div>
+
+                    <!-- Player 8 - Cyber Dragon -->
+                    <div class="bg-[#181A20] border border-[#00D4FF] rounded-xl p-6 relative overflow-hidden pet-card-hover legendary-card">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#00D4FF] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-full flex items-center justify-center text-lg">🐉</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x4b...9f12</div>
+                                <div class="text-xs text-[#00D4FF]">Lv.68 Cyber Dragon <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#FF6B35] to-[#FF073A] text-white text-[8px] rounded">Legendary</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#00D4FF] relative">
+                            <canvas id="gallery-pet-8" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#00D4FF] opacity-50">QUANTUM</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#00D4FF]/20 text-[#00D4FF] rounded">S-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">892</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">15800</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#00D4FF]">⚡</span> <span class="text-[#FF00FF]">💎</span> <span class="text-[#FF6B35]">👑</span></div>
+                    </div>
+
+                    <!-- Player 9 - Quantum Fox -->
+                    <div class="bg-[#181A20] border border-[#FF3366] rounded-xl p-6 relative overflow-hidden pet-card-hover epic-card">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#FF3366] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-pink-500 to-rose-600 rounded-full flex items-center justify-center text-lg">🦊</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x6c...3d78</div>
+                                <div class="text-xs text-[#FF3366]">Lv.42 Quantum Fox <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#8B5CF6] to-[#D946EF] text-white text-[8px] rounded">Epic</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#FF3366] relative">
+                            <canvas id="gallery-pet-9" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#FF3366] opacity-50">PHASE</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#FF3366]/20 text-[#FF3366] rounded">A-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">456</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">9200</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#FF3366]">🔮</span> <span class="text-[#8B5CF6]">⚔️</span></div>
+                    </div>
+
+                    <!-- Player 10 - Dark Gold Twins -->
+                    <div class="bg-[#181A20] border border-[#FFD700] rounded-xl p-6 relative overflow-hidden pet-card-hover legendary-card">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#FFD700] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-yellow-500 to-amber-600 rounded-full flex items-center justify-center text-lg">⚖️</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x2f...a1c9</div>
+                                <div class="text-xs text-[#FFD700]">Lv.88 Dark Gold Twins <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#FF6B35] to-[#FF073A] text-white text-[8px] rounded">Legendary</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#FFD700] relative">
+                            <canvas id="gallery-pet-10" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#FFD700] opacity-50">DIVINE</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#FFD700]/20 text-[#FFD700] rounded">SS-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">1247</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">25800</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#FFD700]">👑</span> <span class="text-[#8B5CF6]">💍</span> <span class="text-[#00FFFF]">🔱</span></div>
+                    </div>
+
+                    <!-- Player 11 - Neon Leopard -->
+                    <div class="bg-[#181A20] border border-[#00BFFF] rounded-xl p-6 relative overflow-hidden pet-card-hover">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#00BFFF] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-sky-500 to-blue-600 rounded-full flex items-center justify-center text-lg">🐆</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x9a...7e21</div>
+                                <div class="text-xs text-[#00BFFF]">Lv.35 Neon Leopard <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#5B8DEF] to-[#00D4FF] text-white text-[8px] rounded">Rare</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#00BFFF] relative">
+                            <canvas id="gallery-pet-11" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#00BFFF] opacity-50">VELOCITY</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#00BFFF]/20 text-[#00BFFF] rounded">B-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">267</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">5400</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#00BFFF]">⚡</span> <span class="text-[#FCD535]">🏃</span></div>
+                    </div>
+
+                    <!-- Player 12 - Ice Phoenix -->
+                    <div class="bg-[#181A20] border border-[#00BFFF] rounded-xl p-6 relative overflow-hidden pet-card-hover legendary-card">
+                        <div class="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-[#00BFFF] to-transparent opacity-10"></div>
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 bg-gradient-to-r from-sky-400 to-cyan-500 rounded-full flex items-center justify-center text-lg">🦅</div>
+                            <div>
+                                <div class="text-white font-bold font-mono">0x1d...5c84</div>
+                                <div class="text-xs text-[#00BFFF]">Lv.72 Ice Phoenix <span class="ml-1 px-1.5 py-0.5 bg-gradient-to-r from-[#FF6B35] to-[#FF073A] text-white text-[8px] rounded">Legendary</span></div>
+                            </div>
+                        </div>
+                        <div class="h-44 bg-[#0b0e11] rounded-lg flex items-center justify-center mb-4 border border-[#00BFFF] relative">
+                            <canvas id="gallery-pet-12" width="140" height="140" class="pet-render"></canvas>
+                            <div class="absolute bottom-1 right-1 text-[8px] text-[#00BFFF] opacity-50">GLACIAL</div>
+                            <div class="absolute top-1 left-1 text-[8px] px-1.5 py-0.5 bg-[#00BFFF]/20 text-[#00BFFF] rounded">S-Tier</div>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-[#848E9C]">Intercepts: <span class="text-white">1089</span></span>
+                            <span class="text-[#848E9C]">PoD: <span class="text-[#FCD535]">21500</span></span>
+                        </div>
+                        <div class="mt-2 text-xs text-[#848E9C]">Equip: <span class="text-[#00BFFF]">❄️</span> <span class="text-[#FFFFFF]">🔥</span> <span class="text-[#FF00FF]">💎</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // State
+        const state = {
+            usdt: 10000, token: 0, pod: 500, petLevel: 1, petXp: 0,
+            interceptCount: 0, equipped: [], form: 'normal'
+        };
+
+        const formatToken = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Toast
+        function showToast(msg, type = 'info') {
+            const c = document.getElementById('toast-container'), t = document.createElement('div');
+            let ic = 'ℹ️', bg = 'bg-[#2B3139]', bc = 'border-[#848E9C]';
+            if (type === 'success') { ic = '✅'; bc = 'border-[#0ECB81]'; }
+            if (type === 'error') { ic = '❌'; bc = 'border-[#F6465D]'; bg = 'bg-[#1a0a0d]'; }
+            if (type === 'warn') { ic = '⚠️'; bc = 'border-[#FCD535]'; }
+            t.className = `toast flex items-center gap-3 p-4 rounded shadow-lg border-l-4 ${bg} ${bc} text-white min-w-[250px]`;
+            t.innerHTML = `<span class="text-xl">${ic}</span><span class="text-sm font-bold">${msg}</span>`;
+            c.appendChild(t);
+            setTimeout(() => c.removeChild(t), 3000);
+        }
+
+        function updateUI() {
+            document.getElementById('token-balance').innerText = formatToken(state.token);
+            document.getElementById('pet-level').innerText = state.petLevel;
+            document.getElementById('pet-xp').innerText = state.petXp;
+            document.getElementById('xp-bar').style.width = state.petXp + '%';
+            document.getElementById('pod-display').innerText = state.pod;
+            document.getElementById('intercept-count').innerText = state.interceptCount;
+
+            // Update badge
+            const badge = document.getElementById('pet-badge');
+            if (state.petLevel >= 10) {
+                badge.innerText = 'Full Form';
+                badge.className = 'px-2 py-1 bg-[#F6465D] text-white text-[10px] pixel-font rounded border border-[#F6465D]';
+            } else if (state.petLevel >= 5) {
+                badge.innerText = 'Growth Stage';
+                badge.className = 'px-2 py-1 bg-[#FCD535] text-black text-[10px] pixel-font rounded border border-[#FCD535]';
+            } else {
+                badge.innerText = 'Infant Stage';
+                badge.className = 'px-2 py-1 bg-[#2B3139] text-[#0ECB81] text-[10px] pixel-font rounded border border-[#0ECB81]';
+            }
+
+            // Update equipment list
+            const list = document.getElementById('equipped-list');
+            if (state.equipped.length === 0) {
+                list.innerHTML = '<span class="text-xs text-[#848E9C]">No Equipment</span>';
+            } else {
+                list.innerHTML = state.equipped.map(item => {
+                    const icons = { glasses: '🕶️', crown: '👑', headphones: '🎧', bandana: '🧣', scarf: '🧣' };
+                    return `<span class="px-2 py-1 bg-[#2B3139] rounded text-xs">${icons[item] || item}</span>`;
+                }).join('');
+            }
+        }
+
+        // Purchase
+        function buyAccessory(item, price) {
+            if (state.equipped.includes(item)) return showToast('Already owned', 'warn');
+            if (state.token < price) return showToast('Insufficient tokens', 'error');
+            state.token -= price;
+            state.equipped.push(item);
+            const btn = document.getElementById('btn-' + item);
+            btn.innerText = 'Owned';
+            btn.className = 'px-3 py-1 bg-[#0ECB81] rounded text-xs text-black';
+            btn.disabled = true;
+            showToast('Purchase successful', 'success');
+            updateUI();
+        }
+
+        // Tab Switch
+        function switchPetTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            document.querySelectorAll('.pet-tab').forEach(t => t.classList.add('hidden'));
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+        }
+
+        // Try-On
+        let tryonItem = 'none';
+        let tryonForm = 'normal';
+
+        function openTryon() {
+            document.getElementById('tryon-modal').classList.remove('hidden');
+            document.getElementById('tryon-modal').classList.add('flex');
+            tryonItem = 'none';
+            tryonForm = state.form;
+            renderTryon();
+        }
+
+        function closeTryon() {
+            document.getElementById('tryon-modal').classList.add('hidden');
+            document.getElementById('tryon-modal').classList.remove('flex');
+        }
+
+        function tryAccessory(item) {
+            tryonItem = item;
+            document.querySelectorAll('.tryon-btn').forEach(b => {
+                b.classList.toggle('border-[#FCD535]', b.dataset.item === item);
+            });
+            renderTryon();
+        }
+
+        function tryForm(form) {
+            tryonForm = form;
+            document.querySelectorAll('.tryon-form-btn').forEach(b => {
+                b.classList.toggle('border-[#0ECB81]', b.dataset.form === form);
+                b.classList.toggle('border-[#FCD535]', b.dataset.form === 'stressed' && form === 'stressed');
+            });
+            renderTryon();
+        }
+
+        function applyTryon() {
+            closeTryon();
+            showToast('Equipment updated', 'success');
+        }
+
+        // Pet Render - Cyberpunk Color Palette
+        const colors = {
+            0: 'transparent',
+            1: '#0ECB81',   // Green
+            2: '#2B3139',   // Dark Gray
+            3: '#FFFFFF',   // White
+            4: '#000000',   // Black
+            5: '#FCD535',   // Yellow
+            6: '#F6465D',   // Red
+            7: '#474D57',   // Gray
+            8: '#FCD535',   // Yellow Highlight
+            // Cyberpunk New Colors
+            9: '#00FFFF',   // Cyan (Cyber Blue)
+            10: '#FF00FF',  // Magenta
+            11: '#FF6B35',  // Orange
+            12: '#7B2D8E',  // Purple
+            13: '#00FF88',  // Neon Green
+            14: '#FF3366',  // Neon Pink
+            15: '#00D4FF',  // Electric Blue
+            16: '#FFD700',  // Gold
+            17: '#8B00FF',  // Violet
+            18: '#39FF14',  // Fluorescent Green
+            19: '#FF073A',  // Neon Red
+            20: '#1E90FF',  // Dodge Blue
+            21: '#FF8C00',  // Dark Orange
+            22: '#00CED1',  // Dark Cyan
+            23: '#FF1493',  // Deep Pink
+            24: '#C0C0C0',  // Silver
+            25: '#4A0080',  // Dark Purple
+            26: '#FF0040',  // Carmine
+            27: '#00FFCC',  // Turquoise
+            28: '#8A2BE2',  // Blue Violet
+            29: '#00FA9A',  // Medium Spring Green
+            30: '#DC143C',  // Crimson
+            31: '#4169E1',  // Royal Blue
+            32: '#FF6600',  // Orange Red
+            33: '#7FFFD4',  // Aquamarine
+            34: '#9400D3',  // Dark Violet
+            35: '#32CD32',  // Lime Green
+            36: '#FF69B4',  // Hot Pink
+            37: '#00BFFF',  // Deep Sky Blue
+            38: '#FF4500',  // Orange Red
+            39: '#DA70D6',  // Orchid
+        };
+
+        // Base Pet Frames
+        const frames = {
+            normal: [[0,0,0,2,2,2,2,0,0,0],[0,0,2,1,1,1,1,2,0,0],[0,2,1,1,1,1,1,1,2,0],[2,1,1,3,4,1,3,4,1,2],[2,1,1,3,3,1,3,3,1,2],[2,1,1,1,1,1,1,1,1,2],[2,1,1,2,1,1,2,1,1,2],[2,1,1,1,2,2,1,1,1,2],[0,2,1,1,1,1,1,1,2,0],[0,0,2,2,2,2,2,2,0,0]],
+            stressed: [[0,0,0,2,2,2,2,0,0,0],[0,0,2,5,5,5,5,2,0,0],[0,2,5,5,5,5,5,5,2,0],[2,5,3,3,4,3,3,4,5,2],[2,5,3,3,3,3,3,3,5,2],[2,5,5,5,5,5,5,5,5,2],[2,5,5,2,2,2,2,5,5,2],[2,5,5,2,4,4,2,5,5,2],[0,2,5,5,5,5,5,5,2,0],[0,0,2,2,2,2,2,2,0,0]],
+            happy: [[0,0,0,2,2,2,2,0,0,0],[0,0,2,1,1,1,1,2,0,8],[0,2,1,1,1,1,1,1,2,0],[2,1,1,2,2,1,2,2,1,2],[2,1,1,1,1,1,1,1,1,2],[2,1,6,1,1,1,1,6,1,2],[2,1,1,2,1,1,2,1,1,2],[2,1,1,1,2,2,1,1,1,2],[0,2,1,1,1,1,1,1,2,0],[0,0,2,2,2,2,2,2,0,0]]
+        };
+
+        // Cyberpunk Style Pet Frames - For Player Showcase
+        const cyberFrames = {
+            // Mech Titan - Player 1 (Legendary)
+            mechTitan: [
+                [0,0,9,9,9,9,9,9,0,0,0,0,0],
+                [0,9,9,10,10,9,10,10,9,0,0,0,0],
+                [0,9,10,10,10,10,10,10,9,0,0,0,0],
+                [0,9,10,3,4,10,3,4,10,9,0,0,0],
+                [0,9,10,10,10,10,10,10,9,0,0,0,0],
+                [0,0,9,9,9,9,9,9,0,0,9,9,0],
+                [0,2,2,2,2,2,2,2,2,2,2,2,0],
+                [2,2,3,2,2,2,2,2,3,2,2,2,2],
+                [2,2,2,2,2,2,2,2,2,2,2,2,2],
+                [0,2,2,2,2,2,2,2,2,2,2,2,0]
+            ],
+            // Ghost Walker - Player 2 (Epic)
+            ghost: [
+                [0,0,0,0,10,10,10,0,0,0,0,0,0],
+                [0,0,0,10,10,22,10,10,0,0,0,0,0],
+                [0,0,10,10,22,22,22,10,10,0,0,0,0],
+                [0,0,10,3,4,22,3,4,10,0,0,10,0],
+                [0,0,10,10,10,10,10,10,10,10,10,10,0],
+                [0,10,10,10,10,10,10,10,10,10,10,10,0],
+                [10,10,10,22,10,10,10,22,10,10,10,22,10],
+                [10,22,10,10,22,10,22,10,10,22,10,10,10],
+                [0,10,10,10,10,10,10,10,10,10,10,10,0],
+                [0,0,10,10,10,10,10,10,10,10,10,0,0]
+            ],
+            // Fire Dragon - Player 3 (Legendary)
+            fireDragon: [
+                [0,0,11,11,6,11,11,0,0,0,0,11,0],
+                [0,11,11,6,6,6,6,11,11,0,11,11,11],
+                [11,11,6,3,4,6,3,4,6,11,11,6,11],
+                [11,6,6,6,6,6,6,6,6,6,6,6,11],
+                [0,11,6,6,11,11,6,6,11,0,11,11,0],
+                [0,0,11,6,6,6,6,11,0,0,6,6,0],
+                [0,6,6,6,6,6,6,6,6,6,6,6,0],
+                [6,6,6,6,6,6,6,6,6,6,6,6,6],
+                [0,6,6,6,6,6,6,6,6,6,6,6,0],
+                [0,0,6,6,6,6,6,6,6,6,6,0,0]
+            ],
+            // Shadow Cat - Player 4 (Rare)
+            shadowCat: [
+                [0,0,0,0,2,2,2,0,0,0,0,0,0],
+                [0,0,0,2,2,2,2,2,0,0,0,0,0],
+                [0,0,2,2,3,4,3,2,2,0,0,2,0],
+                [0,2,2,2,2,2,2,2,2,2,2,2,0],
+                [2,2,2,2,2,2,2,2,2,2,2,2,2],
+                [2,2,2,2,2,2,2,2,2,2,2,2,2],
+                [2,2,2,2,2,2,2,2,2,2,2,2,2],
+                [2,2,2,2,4,4,2,2,2,2,2,2,2],
+                [0,2,2,2,2,2,2,2,2,2,2,2,0],
+                [0,0,2,2,2,2,2,2,2,2,2,0,0]
+            ],
+            // Star Mentor - Player 5 (Epic)
+            starSpirit: [
+                [0,0,0,0,9,9,9,0,0,0,0,0,0],
+                [0,0,0,9,9,18,9,9,0,0,0,18,0],
+                [0,0,9,9,18,18,18,9,9,0,18,18,18],
+                [0,9,9,3,4,18,3,4,9,9,18,4,18],
+                [9,9,9,9,18,18,18,9,9,9,18,18,9],
+                [0,9,9,9,9,9,9,9,9,9,9,9,0],
+                [0,0,9,9,9,9,9,9,9,0,0,9,0],
+                [0,9,9,9,9,9,9,9,9,9,9,9,0],
+                [9,9,9,9,9,9,9,9,9,9,9,9,9],
+                [0,9,9,9,9,9,9,9,9,9,9,0,0]
+            ],
+            // Dream Unicorn - Player 6 (Legendary)
+            unicorn: [
+                [0,0,0,5,0,0,0,5,0,0,0,5,0],
+                [0,0,5,5,5,5,5,5,5,0,5,5,5],
+                [0,5,36,5,5,5,5,5,36,5,36,5,0],
+                [0,5,5,5,5,5,5,5,5,5,5,5,0],
+                [0,0,5,5,5,5,5,5,5,0,5,5,0],
+                [0,0,0,5,5,5,5,5,0,0,5,0,0],
+                [0,5,5,5,5,5,5,5,5,5,5,5,0],
+                [0,5,5,5,5,5,5,5,5,5,5,5,0],
+                [5,5,5,5,5,5,5,5,5,5,5,5,5],
+                [0,5,5,5,5,5,5,5,5,0,5,0,0]
+            ],
+            // Death Knight - Player 7 (Legendary)
+            deathKnight: [
+                [0,0,0,7,7,7,7,7,0,0,0,0,0],
+                [0,0,7,7,19,19,19,7,7,0,0,7,0],
+                [0,7,7,19,3,4,3,19,7,7,7,7,7],
+                [0,7,7,19,19,19,19,19,7,0,19,19,0],
+                [0,0,7,7,19,19,19,7,7,0,19,7,0],
+                [0,7,7,7,7,7,7,7,7,7,7,7,0],
+                [7,7,7,7,7,7,7,7,7,7,7,7,7],
+                [7,7,7,7,4,4,7,7,7,7,4,4,7],
+                [0,7,7,7,7,7,7,7,7,7,7,7,0],
+                [0,0,7,7,7,7,7,7,7,0,0,0,0]
+            ],
+            // Cyber Dragon - New Legendary
+            cyberDragon: [
+                [0,0,0,9,9,15,15,9,9,0,0,0,0,0],
+                [0,0,9,15,15,39,39,15,15,9,0,0,0,0],
+                [0,9,15,39,3,4,4,39,3,15,9,0,0,0],
+                [0,9,15,15,15,39,15,15,15,15,9,0,9,0],
+                [9,15,15,15,15,15,15,15,15,15,15,15,15,9],
+                [9,9,15,15,15,15,15,15,15,15,9,9,9,9],
+                [0,9,9,15,15,15,15,15,15,9,9,0,9,0],
+                [0,0,9,9,9,15,15,9,9,9,0,0,0,0],
+                [0,0,0,9,9,9,9,9,9,0,0,0,0,0],
+                [0,0,0,0,9,9,9,9,0,0,0,0,0,0]
+            ],
+            // Quantum Fox - New Epic
+            quantumFox: [
+                [0,0,0,0,14,14,14,0,0,0,0,0,0,0],
+                [0,0,0,14,14,23,23,14,14,0,0,0,0,0],
+                [0,0,14,14,23,3,4,23,14,14,0,0,0,0],
+                [0,14,14,3,4,14,14,4,3,14,14,0,14,0],
+                [14,14,14,14,14,14,14,14,14,14,14,14,14,14],
+                [14,14,14,14,14,14,14,14,14,14,14,14,14,14],
+                [0,14,14,14,14,23,23,14,14,14,14,14,0,0],
+                [0,0,14,14,14,14,14,14,14,14,14,0,0,0],
+                [0,0,0,14,14,14,14,14,14,14,0,0,0,0],
+                [0,0,0,0,14,14,14,14,0,0,0,0,0,0]
+            ],
+            // Dark Gold Twins - New Legendary
+            twinGods: [
+                [0,0,0,0,16,16,16,16,0,0,0,0,0,0],
+                [0,0,16,16,16,25,25,16,16,16,0,0,0,0],
+                [0,16,16,25,3,4,4,25,3,16,16,0,0,0],
+                [16,16,16,16,16,25,25,16,16,16,16,16,16,0],
+                [16,16,16,16,16,16,16,16,16,16,16,16,16,16],
+                [0,16,16,16,16,16,16,16,16,16,16,16,0,0],
+                [0,16,16,16,16,16,16,16,16,16,16,16,0,0],
+                [16,16,16,16,16,16,16,16,16,16,16,16,16,0],
+                [0,16,16,16,16,16,16,16,16,16,16,0,0,0],
+                [0,0,16,16,16,16,16,16,16,16,0,0,0,0]
+            ],
+            // Neon Leopard - New Rare
+            neonCheetah: [
+                [0,0,0,0,15,15,15,0,0,0,0,0,0,0],
+                [0,0,0,15,15,3,3,15,15,0,0,0,0,0],
+                [0,0,15,15,3,4,4,3,15,15,0,0,0,0],
+                [0,15,15,15,15,15,15,15,15,15,15,0,15,0],
+                [0,15,15,15,15,15,15,15,15,15,15,15,15,0],
+                [15,15,15,15,15,15,15,15,15,15,15,15,15,15],
+                [15,15,15,15,15,15,15,15,15,15,15,15,15,15],
+                [0,15,15,15,15,4,4,15,15,15,15,15,0,0],
+                [0,0,15,15,15,15,15,15,15,15,15,0,0,0],
+                [0,0,0,15,15,15,15,15,15,15,0,0,0,0]
+            ],
+            // Ice Phoenix - New Legendary
+            icePhoenix: [
+                [0,0,0,0,37,37,37,0,0,0,0,0,0,0],
+                [0,0,37,37,37,3,3,37,37,37,0,0,0,0],
+                [0,37,37,3,4,37,37,4,3,37,37,0,0,0],
+                [37,37,37,37,37,37,37,37,37,37,37,37,37,0],
+                [0,37,37,37,37,37,37,37,37,37,37,37,0,0],
+                [0,0,37,37,37,37,37,37,37,37,37,0,0,0],
+                [0,37,37,37,37,37,37,37,37,37,37,37,0,0],
+                [37,37,37,37,37,37,37,37,37,37,37,37,37,37],
+                [0,37,37,37,37,37,37,37,37,37,37,37,0,0],
+                [0,0,37,37,37,37,37,37,37,37,0,0,0,0]
+            ],
+            // Venom Symbiote - New Epic
+            venomSymbiote: [
+                [0,0,0,14,14,14,14,0,0,0,0,0,0,0],
+                [0,0,14,14,23,23,23,14,14,0,0,0,0,0],
+                [0,14,14,23,3,4,4,23,14,14,0,0,0,0],
+                [14,14,14,23,14,14,14,23,14,14,14,0,14,0],
+                [14,14,14,14,14,14,14,14,14,14,14,14,14,14],
+                [14,14,14,14,14,14,14,14,14,14,14,14,14,14],
+                [0,14,14,14,14,23,23,14,14,14,14,14,0,0],
+                [0,0,14,14,14,14,14,14,14,14,14,0,0,0],
+                [0,0,0,14,14,14,14,14,14,14,0,0,0,0],
+                [0,0,0,0,14,14,14,14,0,0,0,0,0,0]
+            ]
+        };
+
+        const accessories = {
+            glasses: [[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[2,4,4,4,4,4,4,4,4,2],[2,4,4,4,2,2,4,4,4,2],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]],
+            crown: [[0,0,5,0,5,0,5,0,0,0],[0,0,5,5,5,5,5,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]],
+            headphones: [[0,0,2,2,2,2,2,2,0,0],[0,0,2,4,4,4,4,2,0,0],[0,0,2,2,2,2,2,2,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]],
+            bandana: [[0,0,0,6,6,6,6,0,0,0],[0,0,6,7,7,7,7,6,0,0],[0,0,0,6,6,6,6,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0,0]]
+        };
+
+        // Render Cyberpunk Pet - For Player Showcase
+        function renderCyberPet(canvasId, petType) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const frame = cyberFrames[petType];
+            if (!frame) return;
+
+            // Clear Canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Calculate Size and Position
+            const canvasSize = canvas.width;
+            const gridSize = frame[0].length;
+            const cellSize = Math.floor(canvasSize / (gridSize + 2));
+            const offsetX = cellSize;
+            const offsetY = cellSize;
+
+            // Draw Pixels
+            for (let y = 0; y < frame.length; y++) {
+                for (let x = 0; x < frame[y].length; x++) {
+                    const colorIndex = frame[y][x];
+                    if (colorIndex > 0) {
+                        ctx.fillStyle = colors[colorIndex] || '#FF00FF';
+                        ctx.fillRect(x * cellSize + offsetX, y * cellSize + offsetY, cellSize - 1, cellSize - 1);
+
+                        // Add Glow Effect
+                        if ([9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39].includes(colorIndex)) {
+                            ctx.shadowBlur = 12;
+                            ctx.shadowColor = colors[colorIndex];
+                            ctx.fillRect(x * cellSize + offsetX, y * cellSize + offsetY, cellSize - 1, cellSize - 1);
+                            ctx.shadowBlur = 0;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Render Player Showcase Cyber Pets After Page Load
+        function initGalleryPets() {
+            renderCyberPet('gallery-pet-1', 'mechTitan');
+            renderCyberPet('gallery-pet-2', 'ghost');
+            renderCyberPet('gallery-pet-3', 'fireDragon');
+            renderCyberPet('gallery-pet-4', 'shadowCat');
+            renderCyberPet('gallery-pet-5', 'starSpirit');
+            renderCyberPet('gallery-pet-6', 'unicorn');
+            renderCyberPet('gallery-pet-7', 'deathKnight');
+            renderCyberPet('gallery-pet-8', 'cyberDragon');
+            renderCyberPet('gallery-pet-9', 'quantumFox');
+            renderCyberPet('gallery-pet-10', 'twinGods');
+            renderCyberPet('gallery-pet-11', 'neonCheetah');
+            renderCyberPet('gallery-pet-12', 'icePhoenix');
+        }
+
+        function renderPet(canvas, form, equipped = []) {
+            const ctx = canvas.getContext('2d');
+            const size = canvas.width === 256 ? 24 : 18;
+            const offsetX = canvas.width === 256 ? 8 : 14;
+            const offsetY = canvas.width === 256 ? 8 : 14;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            let phase = 0;
+            const baseOffset = Math.sin(phase) * 3;
+            const frame = frames[form] || frames.normal;
+
+            for (let y = 0; y < frame.length; y++) {
+                for (let x = 0; x < frame[y].length; x++) {
+                    if (frame[y][x]) {
+                        ctx.fillStyle = colors[frame[y][x]];
+                        ctx.fillRect(x * size + offsetX, y * size + offsetY + baseOffset, size, size);
+                    }
+                }
+            }
+
+            equipped.forEach(item => {
+                if (accessories[item]) {
+                    const acc = accessories[item];
+                    for (let y = 0; y < acc.length; y++) {
+                        for (let x = 0; x < acc[y].length; x++) {
+                            if (acc[y][x]) {
+                                ctx.fillStyle = colors[acc[y][x]];
+                                ctx.fillRect(x * size + offsetX, y * size + offsetY + baseOffset, size, size);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderMainPet() {
+            renderPet(document.getElementById('pet-canvas'), state.form, state.equipped);
+            requestAnimationFrame(renderMainPet);
+        }
+
+        function renderTryon() {
+            renderPet(document.getElementById('dress-canvas'), tryonForm, tryonItem === 'none' ? [] : [tryonItem]);
+        }
+
+        // Startup Animation
+        function runBoot() {
+            const l = document.getElementById('page-loader'), p = document.getElementById('loader-progress');
+            l.classList.remove('hidden');
+            l.classList.add('flex');
+            setTimeout(() => p.style.width = '50%', 100);
+            setTimeout(() => p.style.width = '100%', 400);
+            setTimeout(() => { l.classList.add('hidden'); l.classList.remove('flex'); p.style.width = '0%'; }, 700);
+        }
+
+        window.addEventListener('load', () => {
+            runBoot();
+            renderMainPet();
+            updateUI();
+            initGalleryPets();
+        });
+    </script>
+</body>
+</html>

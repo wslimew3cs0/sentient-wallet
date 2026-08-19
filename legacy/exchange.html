@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exchange - Sentient Wallet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #0b0e11; color: #EAECEF; margin: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .pixel-font { font-family: 'Press Start 2P', cursive; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0e11; }
+        ::-webkit-scrollbar-thumb { background: #2B3139; border-radius: 3px; }
+        canvas.pet-render { image-rendering: pixelated; }
+        @keyframes shake { 0%, 100% { transform: translate(0, 0) rotate(0); } 20% { transform: translate(-2px, 2px); } 40% { transform: translate(2px, -2px); } 60% { transform: translate(-2px, -2px); } 80% { transform: translate(2px, 2px); } }
+        .shaking { animation: shake 0.2s infinite; }
+        @keyframes pulseRed { 0%, 100% { box-shadow: inset 0 0 0px #F6465D; } 50% { box-shadow: inset 0 0 40px rgba(246, 70, 93, 0.4); } }
+        .danger-state { animation: pulseRed 1s infinite; }
+        .btn-buy { background-color: #0ECB81; }
+        .btn-buy:hover { background-color: #0b9e65; }
+        .btn-sell { background-color: #F6465D; }
+        .btn-sell:hover { background-color: #c9354a; }
+        .cyber-modal { background: rgba(11, 14, 17, 0.95); border: 1px solid #F6465D; box-shadow: 0 0 30px rgba(246, 70, 93, 0.2); backdrop-filter: blur(8px); }
+        .nav-item { padding: 0.5rem 1rem; color: #848E9C; border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.2s; font-weight: 600; text-decoration: none; display: inline-block; }
+        .nav-item:hover { color: #EAECEF; }
+        .nav-item.active { color: #FCD535; border-bottom-color: #FCD535; }
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: #FCD535; cursor: pointer; margin-top: -8px; box-shadow: 0 0 10px rgba(252,213,53,0.5); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: #2B3139; border-radius: 2px; }
+        .toast { animation: slideInRight 0.3s forwards, fadeOut 0.5s 2.5s forwards; }
+        @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        #page-loader { background-color: #0b0e11; z-index: 9999; overflow: hidden; }
+        .loader-bar { width: 0%; height: 2px; background-color: #FCD535; transition: width 0.4s ease-out; }
+        @keyframes scanLine { 0% { top: 0%; opacity: 1; } 50% { opacity: 0.5; } 100% { top: 100%; opacity: 1; } }
+        .scan-line { position: absolute; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, transparent, #0ECB81, transparent); animation: scanLine 1.5s ease-in-out infinite; box-shadow: 0 0 20px #0ECB81; }
+        .time-btn { padding: 0.25rem 0.75rem; font-size: 12px; background: #181A20; border: 1px solid #2B3139; color: #848E9C; cursor: pointer; transition: all 0.2s; }
+        .time-btn.active { background: #FCD535; color: #0b0e11; border-color: #FCD535; }
+        .time-btn:hover:not(.active) { border-color: #FCD535; color: #FCD535; }
+        #chart-container canvas { display: block; }
+    </style>
+</head>
+<body class="h-screen flex flex-col relative">
+
+    <!-- Start Animation -->
+    <div id="page-loader" class="absolute inset-0 hidden flex-col justify-center items-center">
+        <div class="scan-line"></div>
+        <div class="relative z-10 text-center">
+            <div id="boot-title" class="text-[#FCD535] pixel-font text-2xl mb-6 tracking-wider">SENTIENT OS</div>
+            <div class="w-80 h-2 bg-[#2B3139] rounded overflow-hidden mb-4 relative">
+                <div id="loader-progress" class="loader-bar h-full"></div>
+            </div>
+            <div id="loader-text" class="text-[#0ECB81] font-mono text-sm">Loading Exchange...</div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast-container" class="absolute bottom-6 right-6 z-[9000] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Backtest Simulation Panel -->
+    <div id="backtest-panel" class="fixed right-0 top-14 bottom-0 w-80 bg-[#181A20] border-l border-[#2B3139] transform translate-x-full transition-transform z-40 overflow-y-auto">
+        <div class="p-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-white font-bold">📊 Time Travel Simulation</h3>
+                <button onclick="toggleBacktest()" class="text-[#848E9C] hover:text-white">&times;</button>
+            </div>
+
+            <!-- Simulation Settings -->
+            <div id="backtest-setup" class="space-y-4">
+                <div class="bg-[#0b0e11] rounded-lg p-3 border border-[#2B3139]">
+                    <div class="text-xs text-[#FCD535] mb-2 font-bold">⏱️ Time Range Settings</div>
+                    <div class="space-y-2">
+                        <div>
+                            <label class="text-xs text-[#848E9C]">Start Date</label>
+                            <input type="date" id="bt-start-date" class="w-full mt-1 px-2 py-1.5 bg-[#181A20] border border-[#2B3139] rounded text-white text-xs">
+                        </div>
+                        <div>
+                            <label class="text-xs text-[#848E9C]">End Date</label>
+                            <input type="date" id="bt-end-date" class="w-full mt-1 px-2 py-1.5 bg-[#181A20] border border-[#2B3139] rounded text-white text-xs">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-[#0b0e11] rounded-lg p-3 border border-[#2B3139]">
+                    <div class="text-xs text-[#0ECB81] mb-2 font-bold">💰 Initial Capital</div>
+                    <input type="number" id="bt-initial-capital" value="10000" class="w-full px-2 py-1.5 bg-[#181A20] border border-[#2B3139] rounded text-white text-sm font-mono">
+                </div>
+
+                <button onclick="startSimulation()" class="w-full py-2.5 bg-[#FCD535] text-black font-bold rounded hover:bg-[#e6c130]">
+                    🚀 Start Simulation
+                </button>
+            </div>
+
+            <!-- Simulation Trading Interface -->
+            <div id="backtest-trading" class="hidden space-y-4">
+                <div class="bg-[#0b0e11] rounded-lg p-3 border border-[#FCD535]">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs text-[#FCD535]">🎮 Simulation in Progress</span>
+                        <span id="bt-timer" class="text-xs text-white font-mono">Day 1</span>
+                    </div>
+                    <div class="text-xs text-[#848E9C] mb-2">
+                        Current Price: <span id="bt-current-price" class="text-[#0ECB81] font-mono">--</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-[#848E9C]">Available USDT: <span id="bt-usdt" class="text-white font-mono">10000</span></span>
+                        <span class="text-[#848E9C]">Holdings: <span id="bt-holding" class="text-white font-mono">0</span></span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <input type="number" id="bt-trade-amount" placeholder="Amount" class="w-full px-2 py-1.5 bg-[#181A20] border border-[#2B3139] rounded text-white text-sm font-mono text-center">
+                    </div>
+                    <div class="text-xs text-[#848E9C] flex items-center justify-center">
+                        ≈ <span id="bt-trade-usdt">0</span> USDT
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="btTrade('buy')" class="py-2 bg-[#0ECB81] text-white font-bold rounded hover:bg-[#0b9e65]">
+                        📈 Buy
+                    </button>
+                    <button onclick="btTrade('sell')" class="py-2 bg-[#F6465D] text-white font-bold rounded hover:bg-[#c9354a]">
+                        📉 Sell
+                    </button>
+                </div>
+
+                <div class="text-xs text-[#848E9C] text-center">
+                    <span id="bt-day-indicator">Day 1</span> / <span id="bt-total-days">30</span> Days
+                </div>
+
+                <button onclick="nextSimulationDay()" class="w-full py-2 bg-[#2B3139] text-white rounded hover:bg-[#474D57]">
+                    ⏭️ Next Day
+                </button>
+
+                <button onclick="endSimulation()" class="w-full py-2 bg-[#FCD535] text-black font-bold rounded hover:bg-[#e6c130]">
+                    🏁 End Simulation
+                </button>
+
+                <!-- Trade Records -->
+                <div class="bg-[#0b0e11] rounded border border-[#2B3139] p-2 max-h-32 overflow-y-auto">
+                    <div class="text-xs text-[#848E9C] mb-1">📜 Trade Log</div>
+                    <div id="bt-trade-log" class="space-y-1 text-xs">
+                        <div class="text-[#848E9C] text-center py-1">Waiting for trades...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simulation Results -->
+            <div id="backtest-results" class="hidden space-y-4">
+                <div class="bg-[#0b0e11] rounded-lg p-4 border border-[#2B3139]">
+                    <div class="text-sm text-white font-bold mb-3">📊 Simulation Report</div>
+
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-[#848E9C]">Initial Capital</span>
+                            <span id="res-initial" class="text-white font-mono">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-[#848E9C]">Final Assets</span>
+                            <span id="res-final" class="text-white font-mono">--</span>
+                        </div>
+                        <div class="flex justify-between border-t border-[#2B3139] pt-2">
+                            <span class="text-[#848E9C]">Total Profit</span>
+                            <span id="res-profit" class="font-bold font-mono">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-[#848E9C]">ROI</span>
+                            <span id="res-roi" class="font-mono">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-[#0b0e11] rounded-lg p-4 border border-[#2B3139]">
+                    <div class="text-sm text-white font-bold mb-2">👾 Pet State Changes</div>
+                    <div id="pet-result" class="text-xs text-[#848E9C] space-y-1">
+                        <!-- Dynamic Generation -->
+                    </div>
+                </div>
+
+                <button onclick="resetSimulation()" class="w-full py-2 bg-[#2B3139] text-white font-bold rounded hover:bg-[#474D57]">
+                    🔄 Restart Simulation
+                </button>
+            </div>
+
+            <!-- History -->
+            <div class="mt-6">
+                <h4 class="text-white font-bold text-sm mb-3">📜 History</h4>
+                <div id="backtest-history" class="space-y-2 text-xs">
+                    <div class="text-[#848E9C] text-center py-2">No Records Yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Navigation -->
+    <header class="bg-[#181A20] border-b border-[#2B3139] flex flex-col flex-shrink-0 z-50">
+        <div class="h-14 px-6 flex items-center justify-between border-b border-[#2B3139]">
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-[#FCD535] font-bold text-xl tracking-wider hover:text-white">SENTIENT</a>
+                <div class="text-sm text-[#848E9C] hidden md:block">/ Web3 Os</div>
+                <div id="header-price" class="text-[#0ECB81] font-mono text-lg ml-4">--</div>
+            </div>
+            <div class="flex items-center gap-6 text-sm">
+                <div class="hidden md:block">
+                    <span class="text-[#848E9C]">Total Asset Value: </span>
+                    <span id="total-value" class="font-mono text-white ml-1">$10,000.00</span>
+                </div>
+                <div><span class="text-[#848E9C]">USDT: </span><span id="usdt-balance" class="font-mono text-white ml-1">10000.00</span></div>
+                <div class="bg-[#2B3139] px-3 py-1 rounded text-[#FCD535] pixel-font text-[10px]"><span>PoD:</span><span id="pod-score">500</span></div>
+            </div>
+        </div>
+        <nav class="h-12 px-6 flex items-center gap-2">
+            <a href="exchange.html" class="nav-item active"><span class="mr-1">📈</span>Exchange</a>
+            <a href="pet.html" class="nav-item"><span class="mr-1">👾</span>NFT Pet Space</a>
+            <a href="vault.html" class="nav-item"><span class="mr-1">🏦</span>Vault</a>
+            <a href="settings.html" class="nav-item"><span class="mr-1">🛡️</span>Defense Settings</a>
+            <button onclick="toggleBacktest()" class="ml-auto px-3 py-1 bg-[#181A20] border border-[#FCD535] text-[#FCD535] rounded text-sm hover:bg-[#FCD535] hover:text-black transition-colors">
+                📊 Backtest Simulation
+            </button>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 overflow-hidden flex">
+        <!-- Left Panel -->
+        <aside class="w-72 bg-[#181A20] border-r border-[#2B3139] flex flex-col">
+            <div class="p-4 border-b border-[#2B3139]">
+                <h2 class="text-xs text-[#848E9C] font-semibold mb-4 tracking-wider uppercase">Neural Companion</h2>
+                <div class="bg-[#0b0e11] rounded-lg p-4 flex flex-col items-center justify-center relative border border-[#2B3139] hover:border-[#FCD535] transition-colors">
+                    <div class="absolute top-2 left-2 text-[8px] pixel-font text-[#848E9C]">LVL <span id="pet-level-mini" class="text-[#FCD535]">1</span></div>
+                    <div class="absolute top-2 right-2 text-[8px] pixel-font text-[#848E9C]">EXP <span id="pet-xp-mini">0</span>/100</div>
+                    <div class="w-32 h-32 mt-4 mb-2 relative">
+                        <canvas id="pet-canvas-mini" width="128" height="128" class="pet-render w-full h-full"></canvas>
+                    </div>
+                    <div id="pet-emotion-text" class="text-[10px] pixel-font text-[#0ECB81] text-center h-6">"System stable, sanity online"</div>
+                </div>
+            </div>
+            <div class="p-4 flex-1 flex flex-col gap-4">
+                <div>
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-[#848E9C]">IRS (Impulse Risk Score)</span>
+                        <span id="irs-value" class="font-mono">0/100</span>
+                    </div>
+                    <div class="h-1.5 w-full bg-[#2B3139] rounded-full overflow-hidden">
+                        <div id="irs-bar" class="h-full bg-[#0ECB81] w-0 transition-all duration-300"></div>
+                    </div>
+                    <p class="text-[10px] text-[#848E9C] mt-2">Current Block Threshold: <span id="irs-threshold-display" class="text-[#FCD535] font-bold">80</span></p>
+                </div>
+                <div class="flex-1 bg-[#0b0e11] rounded border border-[#2B3139] p-2 flex flex-col relative overflow-hidden">
+                    <div class="text-[10px] text-[#848E9C] border-b border-[#2B3139] pb-1 mb-1">Neural Log Monitor</div>
+                    <div id="sys-log" class="flex-1 overflow-y-auto text-[10px] font-mono text-[#0ECB81] space-y-1">
+                        <div>> Engine started successfully.</div>
+                        <div>> Ready to receive neural feedback.</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Middle: Candlestick Chart -->
+        <main class="flex-1 flex flex-col bg-[#0b0e11]">
+            <!-- Candlestick Control Bar -->
+            <div class="h-12 px-4 flex items-center justify-between border-b border-[#2B3139] bg-[#181A20]">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-[#848E9C]">Timeframe:</span>
+                    <button onclick="setTimeframe('1m')" class="time-btn" data-tf="1m">1m</button>
+                    <button onclick="setTimeframe('5m')" class="time-btn" data-tf="5m">5m</button>
+                    <button onclick="setTimeframe('15m')" class="time-btn" data-tf="15m">15m</button>
+                    <button onclick="setTimeframe('1h')" class="time-btn" data-tf="1h">1h</button>
+                    <button onclick="setTimeframe('4h')" class="time-btn" data-tf="4h">4h</button>
+                    <button onclick="setTimeframe('1d')" class="time-btn" data-tf="1d">1d</button>
+                    <button onclick="setTimeframe('1w')" class="time-btn" data-tf="1w">1w</button>
+                    <button onclick="setTimeframe('1mo')" class="time-btn active" data-tf="1mo">1mo</button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-[#848E9C]">Range:</span>
+                    <button onclick="setRange('1m')" class="time-btn text-[10px]" data-r="1m">1m</button>
+                    <button onclick="setRange('3m')" class="time-btn text-[10px]" data-r="3m">3m</button>
+                    <button onclick="setRange('6m')" class="time-btn text-[10px]" data-r="6m">6m</button>
+                    <button onclick="setRange('1y')" class="time-btn text-[10px]" data-r="1y">1y</button>
+                    <button onclick="setRange('all')" class="time-btn text-[10px] active" data-r="all">All</button>
+                </div>
+            </div>
+            <div class="relative" id="chart-container" style="height: 500px; width: 100%;"></div>
+        </main>
+
+        <!-- Right: Trading Panel -->
+        <aside class="w-80 bg-[#181A20] border-l border-[#2B3139] p-4 flex flex-col">
+            <h2 class="text-sm font-semibold mb-4 text-white">Spot Trading</h2>
+            <div class="flex gap-2 mb-4">
+                <button class="flex-1 py-1.5 text-sm font-medium rounded bg-[#2B3139] text-white">Market</button>
+            </div>
+            <div class="space-y-4 flex-1">
+                <div class="bg-[#0b0e11] border border-[#2B3139] rounded p-2 flex justify-between items-center">
+                    <span class="text-[#848E9C] text-xs">Price</span>
+                    <span class="text-white text-sm font-mono">Market Execution</span>
+                    <span class="text-[#848E9C] text-xs">USDT</span>
+                </div>
+                <div class="bg-[#0b0e11] border border-[#2B3139] rounded p-2 flex items-center">
+                    <span class="text-[#848E9C] text-xs w-10">Amount</span>
+                    <input type="number" id="trade-amount" value="1000" class="bg-transparent border-none text-right text-white text-sm font-mono focus:outline-none flex-1">
+                    <span class="text-[#848E9C] text-xs ml-2">USDT</span>
+                </div>
+                <div class="flex justify-between gap-1">
+                    <button class="flex-1 py-1 bg-[#2B3139] hover:bg-[#474D57] rounded text-xs text-[#848E9C]" onclick="setAmount(0.25)">25%</button>
+                    <button class="flex-1 py-1 bg-[#2B3139] hover:bg-[#474D57] rounded text-xs text-[#848E9C]" onclick="setAmount(0.5)">50%</button>
+                    <button class="flex-1 py-1 bg-[#2B3139] hover:bg-[#474D57] rounded text-xs text-[#848E9C]" onclick="setAmount(0.75)">75%</button>
+                    <button class="flex-1 py-1 bg-[#2B3139] hover:bg-[#474D57] rounded text-xs text-[#848E9C]" onclick="setAmount(1)">100%</button>
+                </div>
+                <div class="text-xs text-right text-[#848E9C] font-mono mt-2 mb-6">
+                    Available: <span id="usdt-available">10000.00</span> USDT
+                </div>
+                <button onclick="handleTradeRequest('buy')" class="w-full btn-buy text-white font-bold py-3 rounded mb-3 flex justify-between px-4 items-center">
+                    <span>Buy $SENTIENT</span>
+                    <span class="text-xs opacity-80">(Easy FOMO)</span>
+                </button>
+                <button onclick="handleTradeRequest('sell')" class="w-full btn-sell text-white font-bold py-3 rounded flex justify-between px-4 items-center">
+                    <span>Sell $SENTIENT</span>
+                </button>
+            </div>
+            <div class="mt-4 pt-4 border-t border-[#2B3139]">
+                <div class="flex justify-between text-xs mb-2">
+                    <span class="text-[#848E9C]">Current Holdings</span>
+                    <span id="token-balance" class="font-mono text-white font-bold">0.00 SENTIENT</span>
+                </div>
+                <p class="text-[10px] text-[#848E9C] text-right mt-1">Tokens can purchase gear in Pet Space</p>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Block Modal -->
+    <div id="intercept-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-80 backdrop-blur-sm">
+        <div class="cyber-modal rounded-xl w-[480px] p-6 text-white relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-[#F6465D]"></div>
+            <div class="flex items-center gap-3 mb-4">
+                <svg class="w-8 h-8 text-[#F6465D]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <h2 class="text-xl font-bold tracking-wider">Smart Contract Block Warning</h2>
+            </div>
+            <div class="text-sm text-[#848E9C] leading-relaxed mb-6">
+                <p class="mb-2">Impulse Risk Score (IRS) has exceeded the safe threshold <span id="modal-threshold" class="text-white font-bold">80</span>.</p>
+                <p class="text-[#FCD535]">Your digital pet is begging you to think twice.</p>
+            </div>
+            <div class="bg-[#181A20] border border-[#2B3139] rounded p-4 mb-6 font-mono text-xs">
+                <div class="flex justify-between mb-2">
+                    <span class="text-[#848E9C]">Block Amount:</span>
+                    <span id="intercept-amount" class="text-white">$1,000.00</span>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button onclick="resolveIntercept('safe')" class="w-full bg-[#2B3139] border border-[#0ECB81] text-[#0ECB81] py-3 rounded">
+                    <span class="font-bold">Abandon Trade</span>
+                    <span class="text-xs opacity-70">Funds to vault</span>
+                </button>
+                <button onclick="resolveIntercept('danger')" class="w-full bg-transparent border border-[#F6465D] text-[#F6465D] py-3 rounded">
+                    <span class="font-bold">Force Trade</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        const state = {
+            usdt: 10000, token: 0, vaultBase: 0, vaultYield: 0,
+            irs: 0, pod: 500, irsThreshold: 80,
+            petLevel: 1, petXp: 0, petEmotion: 'normal',
+            currentPrice: 100, isVolatilityHigh: true,
+            pendingTrade: null, interceptCount: 0, equipped: [],
+            timeframe: '1mo', range: 'all'
+        };
+
+        const formatMoney = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formatToken = n => n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+
+        // BTCUSDT Real Monthly Data (December 2024 - February 2026)
+        const btcRealMonthlyData = [
+            { time: 1733011200, open: 96407.99, high: 108353.00, low: 90500.00, close: 93576.00 },
+            { time: 1735689600, open: 93576.00, high: 109588.00, low: 89256.69, close: 102429.56 },
+            { time: 1738368000, open: 102429.56, high: 102783.71, low: 78258.52, close: 84349.94 },
+            { time: 1740787200, open: 84349.95, high: 95000.00, low: 76606.00, close: 82550.01 },
+            { time: 1743465600, open: 82550.00, high: 95758.04, low: 74508.00, close: 94172.00 },
+            { time: 1746057600, open: 94172.00, high: 111980.00, low: 93377.00, close: 104591.88 },
+            { time: 1748736000, open: 104591.88, high: 110530.17, low: 98200.00, close: 107146.50 },
+            { time: 1751328000, open: 107146.51, high: 123218.00, low: 105100.19, close: 115764.08 },
+            { time: 1754006400, open: 115764.07, high: 124474.00, low: 107350.10, close: 108246.35 },
+            { time: 1756684800, open: 108246.36, high: 117900.00, low: 107255.00, close: 114048.93 },
+            { time: 1759276800, open: 114048.94, high: 126199.63, low: 102000.00, close: 109608.01 },
+            { time: 1761955200, open: 109608.01, high: 111250.01, low: 80600.00, close: 90360.00 },
+            { time: 1764547200, open: 90360.01, high: 94588.99, low: 83822.76, close: 87648.22 },
+            { time: 1767225600, open: 87648.21, high: 97924.49, low: 75719.90, close: 78741.09 },
+            { time: 1769904000, open: 78741.10, high: 79424.00, low: 60000.00, close: 66973.26 }
+        ];
+
+        // Real market data generation - simulate multi-year market cycles
+        function generateHistoricalData(days, interval) {
+            // If monthly data (1mo), use real BTC data
+            if (interval === '1mo') {
+                // Truncate data based on requested days (take from latest data backwards)
+                const maxMonths = Math.ceil(days / 30);
+                const data = btcRealMonthlyData.slice(-maxMonths);
+                // Return in order from old to new
+                return data;
+            }
+
+            const data = [];
+            const now = Date.now();
+            const intervalMs = {
+                '1m': 60000, '5m': 300000, '15m': 900000,
+                '1h': 3600000, '4h': 14400000, '1d': 86400000, '1w': 604800000
+            }[interval];
+
+            const points = Math.floor((days * 24 * 60 * 60 * 1000) / intervalMs);
+            let price = 0.05; // Start from lower initial price
+
+            // Market phase configuration - simulate real market cycles
+            const marketPhases = [];
+            const totalPoints = points;
+
+            // Create multiple market cycles (bull-bear-consolidation)
+            const cycleLength = Math.floor(totalPoints / 4);
+            for (let i = 0; i < totalPoints; i++) {
+                const cyclePosition = (i % cycleLength) / cycleLength;
+                let phase, volatility, trendBias;
+
+                if (cyclePosition < 0.3) {
+                    // Bull phase (uptrend)
+                    phase = 'bull';
+                    volatility = 0.02 + Math.random() * 0.03;
+                    trendBias = 0.003 + Math.random() * 0.005;
+                } else if (cyclePosition < 0.5) {
+                    // Late bull phase (high volatility, possible bubble burst)
+                    phase = 'peak';
+                    volatility = 0.04 + Math.random() * 0.08;
+                    trendBias = (Math.random() > 0.7) ? 0.01 : -0.008;
+                } else if (cyclePosition < 0.8) {
+                    // Bear phase (downtrend)
+                    phase = 'bear';
+                    volatility = 0.03 + Math.random() * 0.05;
+                    trendBias = -0.002 - Math.random() * 0.004;
+                } else {
+                    // Consolidation bottoming phase
+                    phase = 'consolidation';
+                    volatility = 0.015 + Math.random() * 0.02;
+                    trendBias = (Math.random() - 0.5) * 0.002;
+                }
+
+                // Random events (10% probability)
+                const eventRoll = Math.random();
+                if (eventRoll < 0.02) {
+                    // Flash crash (-10%~-30%)
+                    volatility = 0.15;
+                    trendBias = -0.1 - Math.random() * 0.2;
+                } else if (eventRoll < 0.04) {
+                    // Surge (+10%~+30%)
+                    volatility = 0.12;
+                    trendBias = 0.1 + Math.random() * 0.2;
+                } else if (eventRoll < 0.06) {
+                    // Big drop (-5%~-10%)
+                    volatility = 0.08;
+                    trendBias = -0.05 - Math.random() * 0.05;
+                } else if (eventRoll < 0.08) {
+                    // Big rise (+5%~+10%)
+                    volatility = 0.06;
+                    trendBias = 0.05 + Math.random() * 0.05;
+                } else if (eventRoll < 0.10) {
+                    // Sideways breakout attempt
+                    volatility = 0.04;
+                    trendBias = (Math.random() - 0.5) * 0.04;
+                }
+
+                // Volatility clustering effect (if previous candle has high volatility, subsequent ones tend to be high too)
+                if (data.length > 10) {
+                    const recentVol = (data[data.length-1].high - data[data.length-1].low) / data[data.length-1].close;
+                    if (recentVol > 0.05) {
+                        volatility *= 1.3; // Amplify volatility
+                    } else if (recentVol < 0.02) {
+                        volatility *= 0.8; // Reduce volatility
+                    }
+                }
+
+                marketPhases.push({ phase, volatility, trendBias });
+            }
+
+            for (let i = points; i >= 0; i--) {
+                const time = Math.floor((now - i * intervalMs) / 1000);
+                const idx = points - i;
+                const { volatility, trendBias } = marketPhases[idx] || { volatility: 0.03, trendBias: 0 };
+
+                // Price change
+                const change = trendBias + (Math.random() - 0.5) * volatility;
+                price = Math.max(0.001, price * (1 + change));
+
+                // Prevent price from going to zero, give support
+                if (price < 0.01) {
+                    price = 0.01 + Math.random() * 0.02;
+                }
+
+                // Generate OHLC
+                const open = price * (1 + (Math.random() - 0.5) * volatility * 0.5);
+                const close = price * (1 + (Math.random() - 0.5) * volatility);
+                const high = Math.max(open, close) * (1 + Math.random() * volatility * 0.5);
+                const low = Math.min(open, close) * (1 - Math.random() * volatility * 0.5);
+
+                data.push({ time, open, high, low, close });
+            }
+            return data;
+        }
+
+        // All timeframe data - support longer time spans
+        let allData = {};
+        const periods = ['1m', '5m', '15m', '1h', '4h', '1d', '1w', '1mo'];
+        const rangeDays = { '1m': 30, '3m': 90, '6m': 180, '1y': 365, 'all': 500 }; // About 15 months of real BTC data
+
+        // Chart variables - initialized in initChart
+        let chart, candleSeries, volumeSeries, domElement;
+
+        // Initialize candlestick chart
+        function initChart() {
+            domElement = document.getElementById('chart-container');
+            if (!domElement) return;
+
+            // Set container style
+            domElement.style.height = '500px';
+
+            // Create chart
+            chart = LightweightCharts.createChart(domElement, {
+                layout: {
+                    background: { type: 'solid', color: '#0b0e11' },
+                    textColor: '#848E9C'
+                },
+                grid: {
+                    vertLines: { color: '#181A20' },
+                    horzLines: { color: '#181A20' }
+                },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                rightPriceScale: { borderColor: '#2B3139' },
+                timeScale: { borderColor: '#2B3139', timeVisible: true, secondsVisible: false },
+                height: 500,
+                width: domElement.clientWidth || 800
+            });
+
+            // Add candlestick series
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#0ECB81',
+                downColor: '#F6465D',
+                borderDownColor: '#F6465D',
+                borderUpColor: '#0ECB81',
+                wickDownColor: '#F6465D',
+                wickUpColor: '#0ECB81'
+            });
+
+            // Add volume series
+            volumeSeries = chart.addHistogramSeries({
+                color: '#26a69a',
+                priceFormat: { type: 'volume' },
+                priceScaleId: '',
+            });
+            volumeSeries.priceScale().applyOptions({
+                scaleMargins: { top: 0.8, bottom: 0 },
+            });
+
+            // Responsive adjustment
+            new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    if (entry.contentRect.height > 0 && entry.contentRect.width > 0) {
+                        chart.resize(entry.contentRect.width, entry.contentRect.height);
+                    }
+                }
+            }).observe(domElement);
+        }
+
+        // Generate volume data
+        function generateVolumeData(candleData) {
+            return candleData.map((candle, i) => {
+                const baseVolume = 1000000;
+                const priceChange = Math.abs(candle.close - candle.open) / candle.open;
+                const volumeMultiplier = 1 + priceChange * 10;
+                const randomFactor = 0.5 + Math.random();
+                const volume = baseVolume * volumeMultiplier * randomFactor;
+
+                return {
+                    time: candle.time,
+                    value: volume,
+                    color: candle.close >= candle.open ? 'rgba(14, 203, 129, 0.5)' : 'rgba(246, 70, 93, 0.5)'
+                };
+            });
+        }
+
+        // Load chart data
+        function loadChartData() {
+            if (!candleSeries || !volumeSeries) {
+                initChart();
+            }
+
+            // Normal mode: load historical data for selected range
+            const days = rangeDays[state.range];
+            const data = generateHistoricalData(days, state.timeframe);
+
+            candleSeries.setData(data);
+
+            // Add volume
+            const volumeData = generateVolumeData(data);
+            volumeSeries.setData(volumeData);
+
+            // Add market event markers
+            const markers = [];
+            const priceSpikes = data.filter((c, i) => {
+                const change = Math.abs(c.close - c.open) / c.open;
+                return change > 0.08 && i > 2 && i < data.length - 3;
+            });
+
+            priceSpikes.forEach((candle, idx) => {
+                const change = (candle.close - candle.open) / candle.open;
+                const isPump = change > 0;
+                markers.push({
+                    time: candle.time,
+                    position: isPump ? 'aboveBar' : 'belowBar',
+                    color: isPump ? '#FCD535' : '#F6465D',
+                    shape: isPump ? 'arrowUp' : 'arrowDown',
+                    text: isPump ?
+                        (change > 0.15 ? '🚀 Surge' : '📈 Big Rise') :
+                        (change < -0.15 ? '💥 Flash Crash' : '📉 Big Drop')
+                });
+            });
+
+            // Only show last 10 important markers
+            candleSeries.setMarkers(markers.slice(-10));
+
+            // Update current price
+            if (data.length > 0) {
+                state.currentPrice = data[data.length - 1].close;
+            }
+        }
+
+        function setTimeframe(tf) {
+            state.timeframe = tf;
+            document.querySelectorAll('[data-tf]').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-tf="${tf}"]`).classList.add('active');
+            loadChartData();
+            updateUI();
+        }
+
+        function setRange(r) {
+            state.range = r;
+            document.querySelectorAll('[data-r]').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-r="${r}"]`).classList.add('active');
+            loadChartData();
+            updateUI();
+        }
+
+        // Time Travel Simulation
+        let backtestHistory = [];
+        let simData = []; // Price data during simulation
+        let simState = {
+            active: false,
+            startDate: null,
+            endDate: null,
+            currentDay: 0,
+            totalDays: 0,
+            initialCapital: 0,
+            usdt: 0,
+            holding: 0,
+            trades: [],
+            dayPrices: []
+        };
+
+        function toggleBacktest() {
+            const panel = document.getElementById('backtest-panel');
+            panel.classList.toggle('translate-x-full');
+
+            // Set default date range
+            const startInput = document.getElementById('bt-start-date');
+            const endInput = document.getElementById('bt-end-date');
+
+            // BTC data valid range: 2024-12-01 to 2026-02-28
+            const btcStartDate = '2024-12-01';
+            const btcEndDate = '2026-02-28';
+            const now = new Date();
+
+            // Default end date: take the smaller of current time and BTC data end time
+            let defaultEndDate;
+            if (now > new Date(btcEndDate)) {
+                defaultEndDate = btcEndDate;
+            } else {
+                defaultEndDate = now.toISOString().split('T')[0];
+            }
+
+            // Default start date: 6 months before end date, ensure it's before end date
+            const endDateObj = new Date(defaultEndDate);
+            endDateObj.setMonth(endDateObj.getMonth() - 6);
+            const defaultStartDate = endDateObj.toISOString().split('T')[0];
+
+            // Set min and max attributes
+            startInput.min = btcStartDate;
+            startInput.max = btcEndDate;
+            endInput.min = btcStartDate;
+            endInput.max = btcEndDate;
+
+            // Set default values
+            startInput.value = defaultStartDate;
+            endInput.value = defaultEndDate;
+
+            // Reset interface
+            document.getElementById('backtest-setup').classList.remove('hidden');
+            document.getElementById('backtest-trading').classList.add('hidden');
+            document.getElementById('backtest-results').classList.add('hidden');
+        }
+
+        // Generate price data for simulation period - use real BTC data
+        function generateSimData(startDate, endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+
+            // Try to use real BTC monthly data
+            const data = [];
+            for (const monthData of btcRealMonthlyData) {
+                const date = new Date(monthData.time * 1000);
+                if (date >= start && date <= end) {
+                    data.push({
+                        time: monthData.time,
+                        timeStr: date.toISOString().split('T')[0],
+                        open: monthData.open,
+                        high: monthData.high,
+                        low: monthData.low,
+                        close: monthData.close
+                    });
+                }
+            }
+
+            // If real data found, return directly
+            if (data.length > 0) {
+                return data;
+            }
+
+            // If date range is outside real data range, use simulated data
+            const daysTotal = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 10;
+            const simulatedData = [];
+            let price = 10 + Math.random() * 5; // Initial price
+
+            for (let i = 0; i < daysTotal; i++) {
+                const date = new Date(start);
+                date.setDate(date.getDate() + i);
+
+                if (date > end) break;
+
+                // Simulate price fluctuations
+                const volatility = 0.02 + Math.random() * 0.04;
+                const trend = (Math.random() - 0.5) * volatility;
+                price = Math.max(1, price * (1 + trend));
+
+                const open = price * (1 - volatility * 0.5);
+                const close = price * (1 + (Math.random() - 0.5) * volatility);
+                const high = Math.max(open, close) * (1 + Math.random() * volatility * 0.5);
+                const low = Math.min(open, close) * (1 - Math.random() * volatility * 0.5);
+
+                simulatedData.push({
+                    time: Math.floor(date.getTime() / 1000),
+                    timeStr: date.toISOString().split('T')[0],
+                    open, high, low, close
+                });
+            }
+
+            return simulatedData;
+        }
+
+        // Start simulation
+        function startSimulation() {
+            const startDate = document.getElementById('bt-start-date').value;
+            const endDate = document.getElementById('bt-end-date').value;
+            const initialCapital = parseFloat(document.getElementById('bt-initial-capital').value);
+
+            if (!startDate || !endDate) {
+                showToast('Please select time range', 'error');
+                return;
+            }
+
+            if (new Date(startDate) >= new Date(endDate)) {
+                showToast('Start date must be before end date', 'error');
+                return;
+            }
+
+            // Generate simulation data
+            simData = generateSimData(startDate, endDate);
+
+            if (simData.length < 5) {
+                showToast('Insufficient data for selected time range', 'error');
+                return;
+            }
+
+            // Initialize simulation state
+            simState = {
+                active: true,
+                startDate: startDate,
+                endDate: endDate,
+                currentDay: 0,
+                totalDays: simData.length,
+                initialCapital: initialCapital,
+                usdt: initialCapital,
+                holding: 0,
+                trades: [],
+                dayPrices: simData.map(d => d.close)
+            };
+
+            // Directly set chart data to simulation data
+            if (candleSeries) {
+                candleSeries.setData(simData);
+            }
+            if (volumeSeries) {
+                volumeSeries.setData(generateVolumeData(simData));
+            }
+
+            // Add start and end markers
+            if (candleSeries && simData.length > 0) {
+                candleSeries.setMarkers([
+                    {
+                        time: simData[0].time,
+                        position: 'aboveBar',
+                        color: '#FCD535',
+                        shape: 'arrowDown',
+                        text: '🚀 Start'
+                    },
+                    {
+                        time: simData[simData.length - 1].time,
+                        position: 'belowBar',
+                        color: '#F6465D',
+                        shape: 'arrowUp',
+                        text: '🏁 End'
+                    }
+                ]);
+            }
+
+            // Switch interface
+            document.getElementById('backtest-setup').classList.add('hidden');
+            document.getElementById('backtest-trading').classList.remove('hidden');
+
+            // Update display
+            updateSimDisplay();
+            showToast(`🎮 Simulation started! Starting your trading journey from ${startDate}`, 'success');
+        }
+
+        // Update start/end markers on chart
+        function updateChartMarkers() {
+            if (!candleSeries || simData.length === 0) return;
+
+            const markers = [];
+
+            // Add start point marker
+            markers.push({
+                time: simData[0].time,
+                position: 'aboveBar',
+                color: '#FCD535',
+                shape: 'arrowDown',
+                text: '🚀 Start'
+            });
+
+            // Add end point marker
+            markers.push({
+                time: simData[simData.length - 1].time,
+                position: 'belowBar',
+                color: '#F6465D',
+                shape: 'arrowUp',
+                text: '🏁 End'
+            });
+
+            // Add important price events
+            simData.forEach((c, i) => {
+                if (i > 0 && i < simData.length - 1) {
+                    const change = Math.abs(c.close - c.open) / c.open;
+                    if (change > 0.08) {
+                        markers.push({
+                            time: c.time,
+                            position: change > 0 ? 'aboveBar' : 'belowBar',
+                            color: change > 0 ? '#FCD535' : '#F6465D',
+                            shape: change > 0 ? 'arrowUp' : 'arrowDown',
+                            text: change > 0 ? '📈' : '📉'
+                        });
+                    }
+                }
+            });
+
+            candleSeries.setMarkers(markers);
+        }
+
+        // Update simulation display
+        function updateSimDisplay() {
+            const currentPrice = simData[simState.currentDay]?.close || 0;
+
+            document.getElementById('bt-current-price').innerText = '$' + currentPrice.toFixed(2);
+            document.getElementById('bt-usdt').innerText = simState.usdt.toFixed(2);
+            document.getElementById('bt-holding').innerText = simState.holding.toFixed(4);
+            document.getElementById('bt-timer').innerText = `Day ${simState.currentDay + 1}`;
+            document.getElementById('bt-day-indicator').innerText = `Day ${simState.currentDay + 1}`;
+            document.getElementById('bt-total-days').innerText = simState.totalDays;
+
+            // Update trade amount preview
+            const tradeAmount = parseFloat(document.getElementById('bt-trade-amount').value) || 0;
+            document.getElementById('bt-trade-usdt').innerText = (tradeAmount * currentPrice).toFixed(2);
+        }
+
+        // Simulate trade
+        function btTrade(type) {
+            if (!simState.active) return;
+
+            const tradeAmount = parseFloat(document.getElementById('bt-trade-amount').value);
+            const currentPrice = simData[simState.currentDay].close;
+
+            if (isNaN(tradeAmount) || tradeAmount <= 0) {
+                showToast('Please enter a valid amount', 'error');
+                return;
+            }
+
+            const cost = tradeAmount * currentPrice;
+
+            if (type === 'buy') {
+                if (cost > simState.usdt) {
+                    showToast('Insufficient USDT!', 'error');
+                    return;
+                }
+                simState.usdt -= cost;
+                simState.holding += tradeAmount;
+
+                simState.trades.push({
+                    day: simState.currentDay + 1,
+                    type: 'buy',
+                    price: currentPrice,
+                    amount: tradeAmount,
+                    cost: cost
+                });
+
+                // Update trade log
+                addTradeLog(`📈 Day${simState.currentDay + 1} Buy ${tradeAmount.toFixed(4)} @ $${currentPrice.toFixed(2)}`);
+
+                // Update pet state - when buying
+                updatePetEmotion('buy');
+
+                showToast(`Bought ${tradeAmount.toFixed(4)} SENT`, 'success');
+            } else {
+                if (tradeAmount > simState.holding) {
+                    showToast('Insufficient holdings!', 'error');
+                    return;
+                }
+                const revenue = tradeAmount * currentPrice;
+                simState.holding -= tradeAmount;
+                simState.usdt += revenue;
+
+                simState.trades.push({
+                    day: simState.currentDay + 1,
+                    type: 'sell',
+                    price: currentPrice,
+                    amount: tradeAmount,
+                    revenue: revenue
+                });
+
+                addTradeLog(`📉 Day${simState.currentDay + 1} Sell ${tradeAmount.toFixed(4)} @ $${currentPrice.toFixed(2)}`);
+
+                // Update pet state - when selling
+                updatePetEmotion('sell');
+
+                showToast(`Sold ${tradeAmount.toFixed(4)} SENT for $${revenue.toFixed(2)}`, 'success');
+            }
+
+            updateSimDisplay();
+        }
+
+        // Add trade record
+        function addTradeLog(text) {
+            const logEl = document.getElementById('bt-trade-log');
+            const emptyMsg = logEl.querySelector('.text-center');
+            if (emptyMsg) emptyMsg.remove();
+
+            const div = document.createElement('div');
+            div.className = 'text-[#848E9C] border-b border-[#181A20] pb-1';
+            div.innerText = text;
+            logEl.insertBefore(div, logEl.firstChild);
+        }
+
+        // Update pet emotion
+        function updatePetEmotion(tradeType) {
+            const irsEl = document.getElementById('irs-value');
+
+            if (tradeType === 'buy') {
+                // Buying increases FOMO, reduces sanity
+                state.irs = Math.min(100, state.irs + 15);
+            } else {
+                // Selling increases sanity
+                state.irs = Math.max(0, state.irs - 10);
+            }
+
+            if (irsEl) {
+                irsEl.innerText = `${Math.floor(state.irs)}/100`;
+            }
+
+            // Update IRS bar
+            const irsBar = document.getElementById('irs-bar');
+            if (irsBar) {
+                irsBar.style.width = state.irs + '%';
+                if (state.irs >= 80) {
+                    irsBar.className = 'h-full bg-[#F6465D] transition-all duration-300';
+                } else if (state.irs >= 50) {
+                    irsBar.className = 'h-full bg-[#FCD535] transition-all duration-300';
+                } else {
+                    irsBar.className = 'h-full bg-[#0ECB81] transition-all duration-300';
+                }
+            }
+
+            // Check if block is triggered
+            if (state.irs >= state.irsThreshold) {
+                showToast('🛡️ Impulse risk block! Cool-down period started', 'error');
+                state.irs = 30; // Force calm
+                if (irsEl) irsEl.innerText = '30/100';
+                if (irsBar) {
+                    irsBar.style.width = '30%';
+                    irsBar.className = 'h-full bg-[#0ECB81] transition-all duration-300';
+                }
+            }
+
+            updateUI();
+        }
+
+        // Next day
+        function nextSimulationDay() {
+            if (simState.currentDay >= simState.totalDays - 1) {
+                showToast('Already the last day of simulation', 'error');
+                return;
+            }
+
+            simState.currentDay++;
+            updateSimDisplay();
+        }
+
+        // End simulation
+        function endSimulation() {
+            if (!simState.active) return;
+
+            simState.active = false;
+
+            // Calculate final results
+            const finalPrice = simData[simState.currentDay].close;
+            const finalValue = simState.usdt + simState.holding * finalPrice;
+            const profit = finalValue - simState.initialCapital;
+            const roi = (profit / simState.initialCapital) * 100;
+
+            // Display results
+            document.getElementById('res-initial').innerText = '$' + simState.initialCapital.toFixed(2);
+            document.getElementById('res-final').innerText = '$' + finalValue.toFixed(2);
+            document.getElementById('res-profit').innerText = (profit >= 0 ? '+' : '') + '$' + profit.toFixed(2);
+            document.getElementById('res-profit').className = 'font-bold font-mono ' + (profit >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]');
+            document.getElementById('res-roi').innerText = (roi >= 0 ? '+' : '') + roi.toFixed(2) + '%';
+            document.getElementById('res-roi').className = 'font-mono ' + (roi >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]');
+
+            // Generate pet state report
+            generatePetReport();
+
+            // Save to history
+            backtestHistory.unshift({
+                date: simState.startDate + ' ~ ' + simState.endDate,
+                initial: simState.initialCapital,
+                final: finalValue,
+                profit: profit,
+                profitRate: roi,
+                tradeCount: simState.trades.length
+            });
+            if (backtestHistory.length > 5) backtestHistory.pop();
+
+            // Switch interface
+            document.getElementById('backtest-trading').classList.add('hidden');
+            document.getElementById('backtest-results').classList.remove('hidden');
+
+            // Restore normal candlestick chart range display
+            loadChartData();
+
+            showToast('🏁 Simulation ended! Check your performance', 'success');
+        }
+
+        // Generate pet report
+        function generatePetReport() {
+            const reportEl = document.getElementById('pet-result');
+
+            const buyCount = simState.trades.filter(t => t.type === 'buy').length;
+            const sellCount = simState.trades.filter(t => t.type === 'sell').length;
+            const totalTrades = simState.trades.length;
+
+            let petState = '';
+            let petAdvice = '';
+
+            if (buyCount > sellCount * 2) {
+                petState = '🤑 Extremely Greedy - Frequent Buying';
+                petAdvice = 'Control FOMO emotions, avoid chasing highs';
+            } else if (sellCount > buyCount * 2) {
+                petState = '😰 Excessive Fear - Frequent Selling';
+                petAdvice = 'Stay patient, do not be affected by short-term fluctuations';
+            } else if (totalTrades === 0) {
+                petState = '🧘 Perfect Composure - No Action';
+                petAdvice = 'Stay rational, wait for the right time';
+            } else if (buyCount > 0 && sellCount > 0) {
+                petState = '⚖️ Balanced Trading - Reasonable Actions';
+                petAdvice = 'Continue making rational decisions';
+            }
+
+            reportEl.innerHTML = `
+                <div class="mb-2">${petState}</div>
+                <div class="text-[10px] text-[#848E9C]">Buy: ${buyCount} times | Sell: ${sellCount} times</div>
+                <div class="text-[10px] text-[#FCD535] mt-1">💡 ${petAdvice}</div>
+            `;
+        }
+
+        // Reset simulation
+        function resetSimulation() {
+            simState = {
+                active: false,
+                startDate: null,
+                endDate: null,
+                currentDay: 0,
+                totalDays: 0,
+                initialCapital: 0,
+                usdt: 0,
+                holding: 0,
+                trades: [],
+                dayPrices: []
+            };
+
+            // Clear trade records
+            document.getElementById('bt-trade-log').innerHTML = '<div class="text-[#848E9C] text-center py-1">Waiting for trades...</div>';
+            document.getElementById('bt-trade-amount').value = '';
+
+            // Clear chart markers, restore normal display
+            if (candleSeries) {
+                candleSeries.setMarkers([]);
+            }
+
+            // Restore normal candlestick chart range display
+            loadChartData();
+
+            // Switch interface
+            document.getElementById('backtest-results').classList.add('hidden');
+            document.getElementById('backtest-setup').classList.remove('hidden');
+        }
+
+        function updateBacktestHistory() {
+            const container = document.getElementById('backtest-history');
+            if (backtestHistory.length === 0) {
+                container.innerHTML = '<div class="text-[#848E9C] text-center py-2">No Records Yet</div>';
+                return;
+            }
+
+            container.innerHTML = backtestHistory.map(r => `
+                <div class="bg-[#0b0e11] rounded p-2">
+                    <div class="flex justify-between">
+                        <span class="text-[#848E9C] text-[10px]">${r.date}</span>
+                        <span class="${r.profitRate >= 0 ? 'text-[#0ECB81]' : 'text-[#F6465D]'}">${r.profitRate >= 0 ? '+' : ''}${r.profitRate.toFixed(1)}%</span>
+                    </div>
+                    <div class="text-[10px] text-[#848E9C]">$${r.initial} → $${r.final.toFixed(0)} | ${r.tradeCount} trades</div>
+                </div>
+            `).join('');
+        }
+
+        // Toast
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            let icon = 'ℹ️', bgColor = 'bg-[#2B3139]', borderColor = 'border-[#848E9C]';
+            if (type === 'success') { icon = '✅'; borderColor = 'border-[#0ECB81]'; }
+            if (type === 'error') { icon = '❌'; borderColor = 'border-[#F6465D]'; bgColor = 'bg-[#1a0a0d]'; }
+            toast.className = `toast flex items-center gap-3 p-4 rounded shadow-lg border-l-4 ${bgColor} ${borderColor} text-white min-w-[250px]`;
+            toast.innerHTML = `<span class="text-xl">${icon}</span> <span class="text-sm font-bold">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { if(container.contains(toast)) container.removeChild(toast); }, 3000);
+        }
+
+        function log(msg, type = 'info') {
+            const logEl = document.getElementById('sys-log');
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            let color = '#0ECB81';
+            if (type === 'warn') color = '#FCD535';
+            if (type === 'error') color = '#F6465D';
+            logEl.innerHTML += `<div><span class="text-[#848E9C]">[${time}]</span> <span style="color:${color}">${msg}</span></div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateUI() {
+            document.getElementById('usdt-balance').innerText = formatMoney(state.usdt);
+            document.getElementById('pod-score').innerText = state.pod;
+            document.getElementById('usdt-available').innerText = formatMoney(state.usdt);
+            document.getElementById('token-balance').innerText = `${formatToken(state.token)} SENTIENT`;
+            document.getElementById('pet-level-mini').innerText = state.petLevel;
+            document.getElementById('pet-xp-mini').innerText = state.petXp;
+
+            const irsBar = document.getElementById('irs-bar');
+            document.getElementById('irs-value').innerText = `${Math.floor(state.irs)}/100`;
+            irsBar.style.width = `${state.irs}%`;
+
+            const emotionTxt = document.getElementById('pet-emotion-text');
+            const riskRatio = state.irs / state.irsThreshold;
+
+            if (riskRatio < 0.5) {
+                irsBar.style.backgroundColor = '#0ECB81';
+                emotionTxt.innerText = state.petEmotion === 'happy' ? "Self-discipline dopamine produced!" : "System stable, sanity online";
+                emotionTxt.style.color = '#0ECB81';
+            } else if (riskRatio < 1.0) {
+                irsBar.style.backgroundColor = '#FCD535';
+                emotionTxt.innerText = "Dopamine secretion abnormal, pet starting to get restless...";
+                emotionTxt.style.color = '#FCD535';
+            } else {
+                irsBar.style.backgroundColor = '#F6465D';
+                emotionTxt.innerText = "Warning: Emotional loss of control!";
+                emotionTxt.style.color = '#F6465D';
+            }
+
+            document.getElementById('header-price').innerText = state.currentPrice.toFixed(2);
+            const totalVal = state.usdt + (state.token * state.currentPrice) + state.vaultBase + state.vaultYield;
+            document.getElementById('total-value').innerText = `$${formatMoney(totalVal)}`;
+        }
+
+        function setAmount(percent) {
+            document.getElementById('trade-amount').value = Math.floor(state.usdt * percent);
+        }
+
+        function handleTradeRequest(type) {
+            const amountStr = document.getElementById('trade-amount').value;
+            const amount = parseFloat(amountStr);
+
+            if (isNaN(amount) || amount <= 0) return showToast("Please enter a valid amount", "error");
+            if (type === 'buy' && amount > state.usdt) return showToast("Insufficient USDT balance", "error");
+            if (type === 'sell' && amount / state.currentPrice > state.token) return showToast("Insufficient token balance", "error");
+
+            let riskIncrease = 25;
+            if (state.isVolatilityHigh) riskIncrease *= 1.8;
+            if (amount > state.usdt * 0.5) riskIncrease *= 1.2;
+
+            state.irs = Math.min(100, state.irs + riskIncrease);
+            log(`Operation detected: ${type.toUpperCase()} $${amount.toFixed(2)}`);
+
+            if (state.irs >= state.irsThreshold) {
+                state.pendingTrade = { type, amount };
+                document.getElementById('intercept-amount').innerText = `$${amount.toFixed(2)}`;
+                document.getElementById('modal-threshold').innerText = state.irsThreshold;
+                document.getElementById('intercept-modal').classList.remove('hidden');
+                document.getElementById('intercept-modal').classList.add('flex');
+                updateUI();
+                return;
+            }
+
+            executeTrade(type, amount);
+        }
+
+        function executeTrade(type, amount) {
+            if (type === 'buy') {
+                const boughtTokens = amount / state.currentPrice;
+                state.usdt -= amount;
+                state.token += boughtTokens;
+                log(`Buy successful: ${boughtTokens.toFixed(4)} SENTIENT`);
+                showToast(`Buy successful`, "success");
+            } else {
+                const tokenToSell = amount / state.currentPrice;
+                if (tokenToSell > state.token) return;
+                state.token -= tokenToSell;
+                state.usdt += amount;
+                log(`Sell successful: $${amount.toFixed(2)}`);
+                showToast(`Sell successful`, "success");
+            }
+            updateUI();
+        }
+
+        function resolveIntercept(decision) {
+            document.getElementById('intercept-modal').classList.add('hidden');
+            document.getElementById('intercept-modal').classList.remove('flex');
+
+            if (decision === 'safe') {
+                const amt = state.pendingTrade.amount;
+                state.usdt -= amt;
+                state.vaultBase += amt;
+                state.irs = 0;
+                state.petEmotion = 'happy';
+                state.pod += 50;
+                state.interceptCount += 1;
+                state.petXp += 35;
+                if (state.petXp >= 100) { state.petLevel++; state.petXp -= 100; }
+                log(`【Block Successful】Sanity takes the high ground`);
+                showToast(`Funds deposited to Aave vault`, "success");
+            } else if (decision === 'danger') {
+                state.petEmotion = 'sick';
+                state.pod = Math.max(0, state.pod - 30);
+                executeTrade(state.pendingTrade.type, state.pendingTrade.amount);
+            }
+            state.pendingTrade = null;
+            updateUI();
+        }
+
+        // Pet rendering
+        const colors = { 0:'transparent',1:'#0ECB81',2:'#2B3139',3:'#FFFFFF',4:'#000000',5:'#FCD535',6:'#F6465D',7:'#474D57',8:'#FCD535' };
+        const frames = {
+            normal: [[0,0,0,2,2,2,2,0,0,0],[0,0,2,1,1,1,1,2,0,0],[0,2,1,1,1,1,1,1,2,0],[2,1,1,3,4,1,3,4,1,2],[2,1,1,3,3,1,3,3,1,2],[2,1,1,1,1,1,1,1,1,2],[2,1,1,2,1,1,2,1,1,2],[2,1,1,1,2,2,1,1,1,2],[0,2,1,1,1,1,1,1,2,0],[0,0,2,2,2,2,2,2,0,0]],
+            stressed: [[0,0,0,2,2,2,2,0,0,0],[0,0,2,5,5,5,5,2,0,0],[0,2,5,5,5,5,5,5,2,0],[2,5,3,3,4,3,3,4,5,2],[2,5,3,3,3,3,3,3,5,2],[2,5,5,5,5,5,5,5,5,2],[2,5,5,2,2,2,2,5,5,2],[2,5,5,2,4,4,2,5,5,2],[0,2,5,5,5,5,5,5,2,0],[0,0,2,2,2,2,2,2,0,0]],
+            happy: [[0,0,0,2,2,2,2,0,0,0],[0,0,2,1,1,1,1,2,0,8],[0,2,1,1,1,1,1,1,2,0],[2,1,1,2,2,1,2,2,1,2],[2,1,1,1,1,1,1,1,1,2],[2,1,6,1,1,1,1,6,1,2],[2,1,1,2,1,1,2,1,1,2],[2,1,1,1,2,2,1,1,1,2],[0,2,1,1,1,1,1,1,2,0],[0,0,2,2,2,2,2,2,0,0]]
+        };
+        let bouncePhase = 0;
+        const canvasEl = document.getElementById('pet-canvas-mini');
+
+        function renderPet() {
+            bouncePhase += 0.1;
+            const baseOffset = Math.sin(bouncePhase) * 4;
+            const frame = frames[state.petEmotion] || frames.normal;
+            const ctx = canvasEl.getContext('2d');
+            ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+            for (let y = 0; y < frame.length; y++) {
+                for (let x = 0; x < frame[y].length; x++) {
+                    const col = frame[y][x];
+                    if (col !== 0) {
+                        ctx.fillStyle = colors[col];
+                        ctx.fillRect(x * 12 + 4, y * 12 + 4 + baseOffset, 12, 12);
+                    }
+                }
+            }
+            requestAnimationFrame(renderPet);
+        }
+
+        function runBootAnimation() {
+            const loader = document.getElementById('page-loader');
+            const progressBar = document.getElementById('loader-progress');
+            loader.classList.remove('hidden');
+            loader.classList.add('flex');
+            setTimeout(() => { progressBar.style.width = '30%'; }, 100);
+            setTimeout(() => { progressBar.style.width = '60%'; }, 300);
+            setTimeout(() => { progressBar.style.width = '90%'; }, 500);
+            setTimeout(() => {
+                progressBar.style.width = '100%';
+                setTimeout(() => {
+                    loader.classList.add('hidden');
+                    loader.classList.remove('flex');
+                    progressBar.style.width = '0%';
+                }, 200);
+            }, 700);
+        }
+
+        // Real-time price update
+        let trendBias = -0.2;
+        let currentCandle = null;
+
+        setInterval(() => {
+            const now = Math.floor(Date.now() / 1000);
+            const isNewMinute = now % 60 === 0;
+
+            let tickVol = state.isVolatilityHigh ? 1.5 : 0.5;
+            let tickChange = (Math.random() * tickVol * 2) - tickVol + trendBias;
+            if (Math.random() < 0.08) tickChange += 3.0;
+            if (Math.random() < 0.05) tickChange -= 4.0;
+
+            state.currentPrice += tickChange;
+            if (state.currentPrice < 1) state.currentPrice = 1;
+
+            if (isNewMinute || !currentCandle) {
+                currentCandle = { time: now, open: state.currentPrice, high: state.currentPrice, low: state.currentPrice, close: state.currentPrice };
+            } else {
+                currentCandle.close = state.currentPrice;
+                currentCandle.high = Math.max(currentCandle.high, state.currentPrice);
+                currentCandle.low = Math.min(currentCandle.low, state.currentPrice);
+            }
+
+            try { candleSeries.update(currentCandle); } catch(e) {}
+            updateUI();
+        }, 800);
+
+        setInterval(() => {
+            if (state.irs > 0 && document.getElementById('intercept-modal').classList.contains('hidden')) {
+                state.irs = Math.max(0, state.irs - 1);
+            }
+            if (state.vaultBase > 0) {
+                state.vaultYield += (state.vaultBase * 0.125 / 31536000) * 100;
+            }
+            updateUI();
+        }, 1000);
+
+        window.addEventListener('load', () => {
+            // Update preview when trade amount is entered
+            document.getElementById('bt-trade-amount')?.addEventListener('input', (e) => {
+                if (!simState.active || !simData[simState.currentDay]) return;
+                const amount = parseFloat(e.target.value) || 0;
+                const price = simData[simState.currentDay]?.close || 0;
+                document.getElementById('bt-trade-usdt').innerText = (amount * price).toFixed(2);
+            });
+
+            // Initialize chart after page and animations are loaded
+            setTimeout(() => {
+                initChart();
+                loadChartData();
+            }, 1000);
+
+            runBootAnimation();
+            renderPet();
+            updateUI();
+            updateBacktestHistory();
+        });
+    </script>
+</body>
+</html>
